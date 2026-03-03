@@ -1,0 +1,414 @@
+%% BioMed_Central_Bib_Style_v1.01
+
+\begin{thebibliography}{24}
+% BibTex style file: bmc-mathphys.bst (version 2.1), 2014-07-24
+\ifx \bisbn   \undefined \def \bisbn  #1{ISBN #1}\fi
+\ifx \binits  \undefined \def \binits#1{#1}\fi
+\ifx \bauthor  \undefined \def \bauthor#1{#1}\fi
+\ifx \batitle  \undefined \def \batitle#1{#1}\fi
+\ifx \bjtitle  \undefined \def \bjtitle#1{#1}\fi
+\ifx \bvolume  \undefined \def \bvolume#1{\textbf{#1}}\fi
+\ifx \byear  \undefined \def \byear#1{#1}\fi
+\ifx \bissue  \undefined \def \bissue#1{#1}\fi
+\ifx \bfpage  \undefined \def \bfpage#1{#1}\fi
+\ifx \blpage  \undefined \def \blpage #1{#1}\fi
+\ifx \burl  \undefined \def \burl#1{\textsf{#1}}\fi
+\ifx \doiurl  \undefined \def \doiurl#1{\url{https://doi.org/#1}}\fi
+\ifx \betal  \undefined \def \betal{\textit{et al.}}\fi
+\ifx \binstitute  \undefined \def \binstitute#1{#1}\fi
+\ifx \binstitutionaled  \undefined \def \binstitutionaled#1{#1}\fi
+\ifx \bctitle  \undefined \def \bctitle#1{#1}\fi
+\ifx \beditor  \undefined \def \beditor#1{#1}\fi
+\ifx \bpublisher  \undefined \def \bpublisher#1{#1}\fi
+\ifx \bbtitle  \undefined \def \bbtitle#1{#1}\fi
+\ifx \bedition  \undefined \def \bedition#1{#1}\fi
+\ifx \bseriesno  \undefined \def \bseriesno#1{#1}\fi
+\ifx \blocation  \undefined \def \blocation#1{#1}\fi
+\ifx \bsertitle  \undefined \def \bsertitle#1{#1}\fi
+\ifx \bsnm \undefined \def \bsnm#1{#1}\fi
+\ifx \bsuffix \undefined \def \bsuffix#1{#1}\fi
+\ifx \bparticle \undefined \def \bparticle#1{#1}\fi
+\ifx \barticle \undefined \def \barticle#1{#1}\fi
+\bibcommenthead
+\ifx \bconfdate \undefined \def \bconfdate #1{#1}\fi
+\ifx \botherref \undefined \def \botherref #1{#1}\fi
+\ifx \url \undefined \def \url#1{\textsf{#1}}\fi
+\ifx \bchapter \undefined \def \bchapter#1{#1}\fi
+\ifx \bbook \undefined \def \bbook#1{#1}\fi
+\ifx \bcomment \undefined \def \bcomment#1{#1}\fi
+\ifx \oauthor \undefined \def \oauthor#1{#1}\fi
+\ifx \citeauthoryear \undefined \def \citeauthoryear#1{#1}\fi
+\ifx \endbibitem  \undefined \def \endbibitem {}\fi
+\ifx \bconflocation  \undefined \def \bconflocation#1{#1}\fi
+\ifx \arxivurl  \undefined \def \arxivurl#1{\textsf{#1}}\fi
+\csname PreBibitemsHook\endcsname
+
+%%% 1
+\bibitem{computational2018}
+\begin{barticle}
+\bauthor{\bsnm{Consortium}, \binits{C.P.-G.}}:
+\batitle{Computational pan-genomics: status, promises and challenges}.
+\bjtitle{Briefings in Bioinformatics}
+\bvolume{19}(\bissue{1}),
+\bfpage{118}--\blpage{135}
+(\byear{2018})
+\end{barticle}
+\endbibitem
+
+%%% 2
+\bibitem{Eizenga2020b}
+\begin{barticle}
+\bauthor{\bsnm{Eizenga}, \binits{J.M.}},
+\bauthor{\bsnm{Novak}, \binits{A.M.}},
+\bauthor{\bsnm{Sibbesen}, \binits{J.A.}},
+\bauthor{\bsnm{Heumos}, \binits{S.}},
+\bauthor{\bsnm{Ghaffaari}, \binits{A.}},
+\bauthor{\bsnm{Hickey}, \binits{G.}},
+\bauthor{\bsnm{Chang}, \binits{X.}},
+\bauthor{\bsnm{Seaman}, \binits{J.D.}},
+\bauthor{\bsnm{Rounthwaite}, \binits{R.}},
+\bauthor{\bsnm{Ebler}, \binits{J.}},
+\bauthor{\bsnm{Rautiainen}, \binits{M.}},
+\bauthor{\bsnm{Garg}, \binits{S.}},
+\bauthor{\bsnm{Paten}, \binits{B.}},
+\bauthor{\bsnm{Marschall}, \binits{T.}},
+\bauthor{\bsnm{Sir\'{e}n}, \binits{J.}},
+\bauthor{\bsnm{Garrison}, \binits{E.}}:
+\batitle{Pangenome graphs}.
+\bjtitle{Annual Review of Genomics and Human Genetics}
+\bvolume{21}(\bissue{1}),
+\bfpage{139}--\blpage{162}
+(\byear{2020})
+\end{barticle}
+\endbibitem
+
+%%% 3
+\bibitem{Paten2017}
+\begin{barticle}
+\bauthor{\bsnm{Paten}, \binits{B.}},
+\bauthor{\bsnm{Novak}, \binits{A.M.}},
+\bauthor{\bsnm{Eizenga}, \binits{J.M.}},
+\bauthor{\bsnm{Garrison}, \binits{E.}}:
+\batitle{Genome graphs and the evolution of genome inference}.
+\bjtitle{Genome Research}
+\bvolume{27}(\bissue{5}),
+\bfpage{665}--\blpage{676}
+(\byear{2017})
+\end{barticle}
+\endbibitem
+
+%%% 4
+\bibitem{Garrison2024}
+\begin{barticle}
+\bauthor{\bsnm{Garrison}, \binits{E.}},
+\bauthor{\bsnm{Guarracino}, \binits{A.}},
+\bauthor{\bsnm{Heumos}, \binits{S.}}, \betal:
+\batitle{Building pangenome graphs}.
+\bjtitle{Nature Methods}
+\bvolume{21}(\bissue{11}),
+\bfpage{2008}--\blpage{2012}
+(\byear{2024})
+\end{barticle}
+\endbibitem
+
+%%% 5
+\bibitem{Hickey2023}
+\begin{barticle}
+\bauthor{\bsnm{Hickey}, \binits{G.}},
+\bauthor{\bsnm{Monlong}, \binits{J.}},
+\bauthor{\bsnm{Ebler}, \binits{J.}}, \betal:
+\batitle{Pangenome graph construction from genome alignments with
+  {Minigraph-Cactus}}.
+\bjtitle{Nature Biotechnology}
+\bvolume{42}(\bissue{4}),
+\bfpage{663}--\blpage{673}
+(\byear{2023})
+\end{barticle}
+\endbibitem
+
+%%% 6
+\bibitem{Liao2023}
+\begin{barticle}
+\bauthor{\bsnm{Liao}, \binits{W.-W.}},
+\bauthor{\bsnm{Asri}, \binits{M.}},
+\bauthor{\bsnm{Ebler}, \binits{J.}}, \betal:
+\batitle{A draft human pangenome reference}.
+\bjtitle{Nature}
+\bvolume{617}(\bissue{7960}),
+\bfpage{312}--\blpage{324}
+(\byear{2023})
+\end{barticle}
+\endbibitem
+
+%%% 7
+\bibitem{Wang2022}
+\begin{barticle}
+\bauthor{\bsnm{Wang}, \binits{T.}},
+\bauthor{\bsnm{Antonacci-Fulton}, \binits{L.}},
+\bauthor{\bsnm{Howe}, \binits{K.}}, \betal:
+\batitle{The human pangenome project: a global resource to map genomic
+  diversity}.
+\bjtitle{Nature}
+\bvolume{604}(\bissue{7906}),
+\bfpage{437}--\blpage{446}
+(\byear{2022})
+\end{barticle}
+\endbibitem
+
+%%% 8
+\bibitem{garrison2023seqwish}
+\begin{barticle}
+\bauthor{\bsnm{Garrison}, \binits{E.}},
+\bauthor{\bsnm{Guarracino}, \binits{A.}}:
+\batitle{Unbiased pangenome graphs}.
+\bjtitle{Bioinformatics}
+\bvolume{39}(\bissue{1}),
+\bfpage{743}
+(\byear{2023})
+\end{barticle}
+\endbibitem
+
+%%% 9
+\bibitem{Paten2011cactus}
+\begin{barticle}
+\bauthor{\bsnm{Paten}, \binits{B.}},
+\bauthor{\bsnm{Earl}, \binits{D.}},
+\bauthor{\bsnm{Nguyen}, \binits{N.}},
+\bauthor{\bsnm{Diekhans}, \binits{M.}},
+\bauthor{\bsnm{Zerbino}, \binits{D.}},
+\bauthor{\bsnm{Haussler}, \binits{D.}}:
+\batitle{Cactus: Algorithms for genome multiple sequence alignment}.
+\bjtitle{Genome Research}
+\bvolume{21}(\bissue{9}),
+\bfpage{1512}--\blpage{1528}
+(\byear{2011})
+\end{barticle}
+\endbibitem
+
+%%% 10
+\bibitem{Blanchette2004}
+\begin{barticle}
+\bauthor{\bsnm{Blanchette}, \binits{M.}},
+\bauthor{\bsnm{Kent}, \binits{W.J.}},
+\bauthor{\bsnm{Riemer}, \binits{C.}},
+\bauthor{\bsnm{Elnitski}, \binits{L.}},
+\bauthor{\bsnm{Smit}, \binits{A.F.A.}},
+\bauthor{\bsnm{Roskin}, \binits{K.M.}},
+\bauthor{\bsnm{Baertsch}, \binits{R.}},
+\bauthor{\bsnm{Rosenbloom}, \binits{K.}},
+\bauthor{\bsnm{Clawson}, \binits{H.}},
+\bauthor{\bsnm{Green}, \binits{E.D.}},
+\bauthor{\bsnm{Haussler}, \binits{D.}},
+\bauthor{\bsnm{Miller}, \binits{W.}}:
+\batitle{Aligning multiple genomic sequences with the threaded blockset
+  aligner}.
+\bjtitle{Genome Research}
+\bvolume{14}(\bissue{4}),
+\bfpage{708}--\blpage{715}
+(\byear{2004})
+\end{barticle}
+\endbibitem
+
+%%% 11
+\bibitem{Kuhn2013ucsc}
+\begin{barticle}
+\bauthor{\bsnm{Kuhn}, \binits{R.M.}},
+\bauthor{\bsnm{Haussler}, \binits{D.}},
+\bauthor{\bsnm{Kent}, \binits{W.J.}}:
+\batitle{The {UCSC} genome browser and associated tools}.
+\bjtitle{Briefings in Bioinformatics}
+\bvolume{14}(\bissue{2}),
+\bfpage{144}--\blpage{161}
+(\byear{2013})
+\end{barticle}
+\endbibitem
+
+%%% 12
+\bibitem{Li2018minimap2}
+\begin{barticle}
+\bauthor{\bsnm{Li}, \binits{H.}}:
+\batitle{Minimap2: pairwise alignment for nucleotide sequences}.
+\bjtitle{Bioinformatics}
+\bvolume{34}(\bissue{18}),
+\bfpage{3094}--\blpage{3100}
+(\byear{2018})
+\end{barticle}
+\endbibitem
+
+%%% 13
+\bibitem{Hickey2013hal}
+\begin{barticle}
+\bauthor{\bsnm{Hickey}, \binits{G.}},
+\bauthor{\bsnm{Paten}, \binits{B.}},
+\bauthor{\bsnm{Earl}, \binits{D.}},
+\bauthor{\bsnm{Zerbino}, \binits{D.}},
+\bauthor{\bsnm{Haussler}, \binits{D.}}:
+\batitle{{HAL}: a hierarchical format for storing and analyzing multiple genome
+  alignments}.
+\bjtitle{Bioinformatics}
+\bvolume{29}(\bissue{10}),
+\bfpage{1341}--\blpage{1342}
+(\byear{2013})
+\end{barticle}
+\endbibitem
+
+%%% 14
+\bibitem{dcjones2020}
+\begin{botherref}
+\oauthor{\bsnm{Jones}, \binits{D.C.}}:
+Coitrees: Cache Oblivious Interval Trees.
+\url{https://github.com/dcjones/coitrees}.
+GitHub repository
+(2020)
+\end{botherref}
+\endbibitem
+
+%%% 15
+\bibitem{myers2025fastga}
+\begin{barticle}
+\bauthor{\bsnm{Myers}, \binits{G.}},
+\bauthor{\bsnm{Durbin}, \binits{R.}},
+\bauthor{\bsnm{Zhou}, \binits{C.}}:
+\batitle{{FastGA}: fast genome alignment}.
+\bjtitle{Bioinformatics Advances}
+\bvolume{5}(\bissue{1}),
+\bfpage{238}
+(\byear{2025})
+\end{barticle}
+\endbibitem
+
+%%% 16
+\bibitem{tpa}
+\begin{barticle}
+\bauthor{\bsnm{Kaushan}, \binits{H.}},
+\bauthor{\bsnm{Marco-Sola}, \binits{S.}},
+\bauthor{\bsnm{Garrison}, \binits{E.}},
+\bauthor{\bsnm{Prins}, \binits{P.}},
+\bauthor{\bsnm{Guarracino}, \binits{A.}}:
+\batitle{Adaptive tracepoints for pangenome alignment compression}.
+\bjtitle{bioRxiv}
+(\byear{2026}).
+\doiurl{10.64898/2026.02.16.706236}
+\end{barticle}
+\endbibitem
+
+%%% 17
+\bibitem{deorowicz2023agc}
+\begin{barticle}
+\bauthor{\bsnm{Deorowicz}, \binits{S.}},
+\bauthor{\bsnm{Danek}, \binits{A.}},
+\bauthor{\bsnm{Li}, \binits{H.}}:
+\batitle{{AGC}: compact representation of assembled genomes with fast queries
+  and updates}.
+\bjtitle{Bioinformatics}
+\bvolume{39}(\bissue{3}),
+\bfpage{097}
+(\byear{2023})
+\end{barticle}
+\endbibitem
+
+%%% 18
+\bibitem{Garrison2018}
+\begin{barticle}
+\bauthor{\bsnm{Garrison}, \binits{E.}},
+\bauthor{\bsnm{Sir\'{e}n}, \binits{J.}},
+\bauthor{\bsnm{Novak}, \binits{A.M.}}, \betal:
+\batitle{Variation graph toolkit improves read mapping by representing genetic
+  variation in the reference}.
+\bjtitle{Nature Biotechnology}
+\bvolume{36}(\bissue{9}),
+\bfpage{875}--\blpage{879}
+(\byear{2018})
+\end{barticle}
+\endbibitem
+
+%%% 19
+\bibitem{sweepga}
+\begin{botherref}
+\oauthor{\bsnm{{Pangenome Team}}}:
+sweepga: sweep-line based genomic alignment.
+\url{https://github.com/pangenome/sweepga}.
+GitHub repository
+(2024)
+\end{botherref}
+\endbibitem
+
+%%% 20
+\bibitem{Vaser2017}
+\begin{barticle}
+\bauthor{\bsnm{Vaser}, \binits{R.}},
+\bauthor{\bsnm{Sovi\'{c}}, \binits{I.}},
+\bauthor{\bsnm{Nagarajan}, \binits{N.}},
+\bauthor{\bsnm{\v{S}iki\'{c}}, \binits{M.}}:
+\batitle{Fast and accurate de novo genome assembly from long uncorrected
+  reads}.
+\bjtitle{Genome Research}
+\bvolume{27}(\bissue{5}),
+\bfpage{737}--\blpage{746}
+(\byear{2017})
+\end{barticle}
+\endbibitem
+
+%%% 21
+\bibitem{erdos1959random}
+\begin{barticle}
+\bauthor{\bsnm{Erd\H{o}s}, \binits{P.}},
+\bauthor{\bsnm{R\'enyi}, \binits{A.}}:
+\batitle{On random graphs {I}}.
+\bjtitle{Publicationes Mathematicae Debrecen}
+\bvolume{6},
+\bfpage{290}--\blpage{297}
+(\byear{1959})
+\end{barticle}
+\endbibitem
+
+%%% 22
+\bibitem{bolognini2026cosigt}
+\begin{barticle}
+\bauthor{\bsnm{Bolognini}, \binits{D.}},
+\bauthor{\bsnm{Guarracino}, \binits{A.}},
+\bauthor{\bsnm{Paleni}, \binits{C.}},
+\bauthor{\bsnm{Dudley}, \binits{T.S.}},
+\bauthor{\bsnm{Iacoviello}, \binits{L.}},
+\bauthor{\bsnm{Raveane}, \binits{A.}},
+\bauthor{\bsnm{Sudmant}, \binits{P.H.}},
+\bauthor{\bsnm{Garrison}, \binits{E.}},
+\bauthor{\bsnm{Soranzo}, \binits{N.}}:
+\batitle{Population-scalable genotyping from low-coverage sequencing data using
+  pangenome graphs}.
+\bjtitle{bioRxiv}
+(\byear{2026}).
+\doiurl{10.64898/2026.02.05.704023}
+\end{barticle}
+\endbibitem
+
+%%% 23
+\bibitem{Nishikawa2023}
+\begin{barticle}
+\bauthor{\bsnm{Nishikawa}, \binits{J.}},
+\bauthor{\bsnm{Iizasa}, \binits{H.}},
+\bauthor{\bsnm{Yoshiyama}, \binits{H.}},
+\bauthor{\bsnm{Shimizu}, \binits{N.}}, \betal:
+\batitle{Chromosomal fragile site breakage by {EBV}-encoded {EBNA1} at
+  clustered repeats}.
+\bjtitle{Nature}
+\bvolume{616},
+\bfpage{504}--\blpage{509}
+(\byear{2023})
+\end{barticle}
+\endbibitem
+
+%%% 24
+\bibitem{Siren2024}
+\begin{barticle}
+\bauthor{\bsnm{Sir\'{e}n}, \binits{J.}},
+\bauthor{\bsnm{Eskandar}, \binits{P.}}, \betal:
+\batitle{Personalized pangenome references}.
+\bjtitle{Nature Methods}
+\bvolume{21}(\bissue{11}),
+\bfpage{2017}--\blpage{2023}
+(\byear{2024})
+\end{barticle}
+\endbibitem
+
+\end{thebibliography}

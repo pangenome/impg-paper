@@ -1,0 +1,27 @@
+Dear Editor,
+
+Please find attached our manuscript entitled ``Implicit pangenome graphs'' for consideration as a Brief Communication in \textit{Nature Methods}.
+
+We present IMPG (Implicit Pangenome Graph), a framework that establishes alignment space as the primary operating domain for pangenomics. Rather than treating pairwise alignments as disposable intermediates to be consumed during graph construction, IMPG indexes them as implicit graph structures that can be queried, partitioned, and selectively materialized at interactive speeds. This represents a shift in how pangenome data are organized and analyzed: the alignment collection itself becomes the queryable pangenome representation.
+
+We believe this work is a natural companion to our recent publication of the PGGB pangenome graph builder (\textit{Nature Methods} 2024). Where PGGB constructs explicit variation-aware graphs, IMPG operates upstream---providing the indexing, partitioning, and region extraction infrastructure that feeds into graph builders. Together, they span complementary levels of the pangenome analysis stack.
+
+Four aspects make IMPG particularly noteworthy for the \textit{Nature Methods} readership:
+
+\begin{enumerate}
+\item \textbf{A framework, not just a tool.} IMPG introduces alignment space as the primary analytical domain for pangenomics, with three core capabilities: transitive coordinate projection across all genomes in a pangenome, alignment-based partitioning for distributed construction, and on-demand graph materialization for regions of interest. For many analyses---liftover, genotyping, region extraction---the implicit index alone suffices without building a graph.
+
+\item \textbf{Alignment-based partitioning.} As pangenomes grow to hundreds of haplotypes, partitioning is essential for tractable construction. Chromosome-based approaches assume synteny; community-based approaches (e.g., PGGB's Leiden clustering) assign whole contigs to partitions. IMPG partitions at aligned-interval granularity, splitting contigs at alignment boundaries so that translocations and rearrangements are handled naturally. The partition-lace pipeline distributes construction across compute nodes and merges outputs into unified GFA or VCF.
+
+\item \textbf{Laptop-scale pangenomics.} On 466 human haplotypes from HPRCv2, the complete ready-to-query representation---alignments, indexes, and compressed sequences---fits in 42.5\,GiB. IMPG queries a 6\,Mbp region in under 2 seconds with less than 90\,MiB memory. The entire human pangenome is interactively explorable on commodity hardware without decompression or graph loading.
+
+\item \textbf{Practical adoption and biological insight.} IMPG is already production infrastructure: Bolognini et al.\ (\textit{Nature} 2024) used it within the COSIGT pipeline to genotype complex structural variation at the amylase locus across thousands of individuals. We further demonstrate IMPG's capacity for rapid population-scale exploration at an EBV-associated tandem repeat cluster, revealing continuous polymorphism across 466 haplotypes that contradicts the discrete population difference reported from four genomes.
+\end{enumerate}
+
+We have no conflicts of interest to declare beyond those noted in the manuscript (B.K.\ is an employee of Illumina). We suggest the following potential reviewers based on their expertise in pangenomics and computational genomics: Benedict Paten (UC Santa Cruz), Tobias Marschall (Heinrich Heine University D\"usseldorf), and Heng Li (Dana-Farber Cancer Institute).
+
+Thank you for considering our manuscript. We look forward to your response.
+
+\medskip
+\noindent Best regards,\\
+Andrea Guarracino, Bryce Kille, and Erik Garrison

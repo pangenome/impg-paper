@@ -1,0 +1,114 @@
+%%% Detailed Methods
+
+\section*{Methods}
+\label{secMethods}
+
+\setcounter{figure}{0}
+
+Here we provide algorithmic and implementation details not described in the main text.
+
+\subsection*{Overview}
+
+IMPG is implemented in Rust and provides a command-line interface with nine primary operations: \texttt{index} (precompute alignment indices), \texttt{query} (direct and transitive coordinate projection), \texttt{partition} (divide pangenome into non-overlapping segments), \texttt{similarity} (pairwise sequence comparison), \texttt{refine} (optimize locus boundaries), \texttt{align} (generate sparsified alignment pairs), \texttt{graph} (end-to-end graph construction), \texttt{lace} (merge partitioned outputs), and \texttt{stats} (alignment index diagnostics). IMPG is freely available at \url{https://github.com/pangenome/impg} under the MIT license (version 0.4.1 used for all benchmarks).
+
+\subsection*{Core algorithm: implicit pangenome graph}
+
+IMPG exploits a well-established property of pairwise alignments: they inherently define a graph structure through transitive match relationships \cite{Garrison2024, garrison2023seqwish}. This principle underlies multiple alignment methods such as TBA/MULTIZ \cite{Blanchette2004} and T-Coffee \citeMeth{Notredame2000}, which chain pairwise alignments transitively, and explicit graph builders like Cactus \cite{Paten2011cactus}, which compute transitive closure from pairwise alignments. IMPG's contribution is to make this implicit structure efficiently queryable at runtime---discovering sequences connected through intermediate alignments by iteratively following alignment chains---without materializing the graph.
+
+\subsection*{Index structure}
+
+The implementation utilizes cache-oblivious interval trees (coitrees) \cite{dcjones2020} that use a van Emde Boas recursive layout to represent tree structures implicitly using array indices rather than pointers. This layout achieves $O(\log_B n + k/B)$ cache misses for block size $B$, reducing memory overhead while maintaining efficient query performance. Sequence names are mapped to numeric identifiers through a deterministic sorting scheme, ensuring reproducible results. CIGAR strings are packed into compact 32-bit integers, with three most significant bits encoding the operation type and the remaining 29 bits encoding the operation length. Rather than loading all alignment data into memory, IMPG stores byte offsets to CIGAR data in the original files, enabling on-demand retrieval.
+
+The index file structure uses a forest map---a lookup table that maps sequence IDs to their corresponding interval tree locations within the index file. Individual coitrees for each target sequence are stored sequentially, with byte offsets recorded in the forest map at the file's end. This enables lazy loading of specific target trees without parsing the entire index.
+
+By default, each alignment A$\rightarrow$B creates an implicit reverse mapping B$\rightarrow$A, doubling the number of index entries but ensuring every haplotype can serve as a bridge for transitive queries in both directions. Users may opt for unidirectional indexing via \texttt{--unidirectional} for smaller indices at the cost of reduced transitive reach.
+
+\subsection*{Alignment formats}
+
+Beyond PAF (both uncompressed and BGZF-compressed), IMPG supports the .1aln format \cite{myers2025fastga} (ONE alignment format) and TPA (TracePoint Alignment) binary files \cite{tpa}. Tracepoints \cite{tpa} store sparse positional checkpoints that record sequence position deltas at complexity-bounded segment boundaries, achieving substantially more compact storage than text-based PAF. CIGAR strings are reconstructed on demand via wavefront alignment (WFA) \citeMeth{marco2023biwfa} within bounded bandwidth, guaranteeing exact reconstruction when the original sequences are available. For tracepoint-based formats, an approximate query mode bypasses CIGAR reconstruction for fast coordinate-level output, estimating projected boundaries from tracepoint segment coordinates without sequence I/O. Exact-mode queries reconstruct the full CIGAR via WFA \citeMeth{marco2023biwfa} and produce base-exact coordinates. A comparison of interval boundaries between the two modes is provided in Supplementary Table~X.
+
+\subsection*{Multi-file index architecture}
+
+For large distributed datasets, IMPG supports per-file indexing with a unified sequence namespace. Each alignment file has its own .impg index and a serializable cache that stores the unified sequence index together with ID translation tables. Staleness detection based on file size and modification time ensures cache consistency. The indexing mode is selected automatically ($\geq$100 files triggers per-file mode) or controlled via \texttt{--index-mode}. Critically, per-file indexing enables incremental indexing: new files require indexing while existing indices are reused without rebuilding.
+
+\subsection*{Query algorithms}
+
+Basic overlap queries identify all alignments whose target intervals intersect a query range with $O(\log n + k)$ complexity. Query results include projected coordinates computed by traversing CIGAR operations to map target ranges to query coordinates.
+
+Transitive queries iteratively follow alignment chains to discover sequences connected through intermediate alignments. The Erd\H{o}s--R\'enyi random graph model \cite{erdos1959random} provides a heuristic guideline: when pairs are connected with probability $P > (1+\epsilon) \frac{\ln N}{N}$, the resulting random graph is connected with high probability using $O(N \log N)$ rather than $O(N^2)$ edges. Because genomic alignments are not random---they depend on sequence similarity and population structure---this threshold serves as a practical lower bound rather than a formal guarantee. The default traversal depth is two hops (sufficient for reference-bridged datasets) and can be increased via \texttt{--max-depth}. Two traversal strategies are implemented: breadth-first search (BFS) for optimal cache locality and depth-first search (DFS) for fewer overlapping results in dense regions.
+
+\subsection*{Partitioning algorithm}
+
+The \texttt{partition} command iteratively divides the pangenome into non-overlapping partitions using sliding windows of transitive queries, maintaining masked regions (already partitioned) and missing regions (not yet partitioned). Crucially, the algorithm operates at aligned-interval granularity: a single contig can be split across multiple partitions at alignment boundaries, with each interval assigned to the partition containing its homologous context. The sliding window mechanism scans reference coordinates, collecting transitively connected intervals into candidate partitions, and advances past already-partitioned (masked) regions. Four selection strategies control partition characteristics: longest (minimizes partition count), total (greatest unpartitioned content), sample (maximizes sample representation), and haplotype (maximizes haplotype diversity).
+
+\subsection*{Comparison with partitioning approaches}
+
+Three approaches to pangenome partitioning differ in the granularity at which they assign sequences. Chromosome-based partitioning assigns contigs by chromosome identity, assuming synteny; this fails for translocations, inter-chromosomal rearrangements, and fragmented contigs that cannot be cleanly assigned to a single chromosome. Community-based partitioning, as implemented in PGGB's Leiden clustering \cite{Garrison2024}, operates on sequence-similarity networks at whole-sequence granularity: entire contigs are assigned to communities, so a contig with regions homologous to different genomic contexts is forced into one partition. PGGB's documentation notes that translocations may be conflated with syntenic regions under this approach, and sequence similarity serves as a proxy for homology rather than a direct measure. IMPG's alignment-based partitioning operates at the level of aligned intervals: contigs are split at alignment boundaries, and intervals from the same contig are routed to different partitions when they align to different genomic contexts. This handles translocations naturally without special-casing and does not require synteny assumptions or whole-sequence similarity networks. The three approaches reflect different design goals---chromosome-based partitioning prioritizes simplicity, community-based partitioning balances scalability with sequence-level grouping, and alignment-based partitioning maximizes granularity at the cost of requiring indexed pairwise alignments.
+
+\subsection*{Similarity analysis}
+
+The \texttt{similarity} command computes pairwise similarity coefficients between sequences in specified genomic regions. Overlapping sequences are extracted, aligned via POA (SPOA) to produce a multiple sequence alignment, and pairwise similarities computed from column-wise intersection counts. Three metrics are supported: Jaccard ($J = |A \cap B| / |A \cup B|$), Cosine ($\cos = |A \cap B| / \sqrt{|A| \cdot |B|}$), and Dice ($D = 2|A \cap B| / (|A| + |B|)$). The resulting matrices can be processed through integrated PCA or MDS implementations with adaptive polarization for genome-wide consistency.
+
+\subsection*{Locus refinement}
+
+The \texttt{refine} command optimizes genomic loci to maximize the number of entities (sequences, samples, or haplotypes) spanning both boundaries. This is particularly valuable for structural variant analysis where loci should avoid terminating within large insertions or deletions. The algorithm explores asymmetric left and right boundary expansions with configurable extension steps.
+
+\subsection*{Alignment generation}
+
+The \texttt{align} command generates sparsified pairwise alignment sets using connectivity targets derived from the Erd\H{o}s--R\'enyi model. Four strategies are supported: exhaustive ($O(N^2)$), random subsampling, connectivity-probability (default: 0.99), and tree-based sampling combining MinHash nearest-neighbor and stranger-joining pair selection \cite{sweepga}. In joblist mode, the command emits alignment commands for cluster distribution; direct execution via the embedded FastGA aligner is supported for smaller datasets.
+
+\subsection*{Graph building engines}
+
+IMPG provides three graph construction engines, selectable via \texttt{--engine}:
+
+\textbf{Seqwish engine} (default for \texttt{graph}). The \texttt{graph} command provides end-to-end pangenome graph construction from FASTA sequences: FastGA alignment via sweepga \cite{sweepga}, filtering (scaffold chaining, cardinality control, identity and overlap filtering), seqwish-based graph induction \cite{garrison2023seqwish}, and GFA sorting via path-guided stochastic gradient descent.
+
+\textbf{POA engine.} For small regions ($\leq$10\,kbp), SPOA-based \cite{Vaser2017} partial order alignment produces a variation graph in a single pass. This engine applies padded POA (described below) when boundary context is needed.
+
+\textbf{Recursive engine} (default for \texttt{query} and \texttt{partition} GFA output). A divide-and-conquer strategy that constructs variation graphs from sets of homologous sequences through recursive partitioning, parallel POA, and sub-graph lacing. The algorithm proceeds as follows:
+
+\begin{enumerate}
+\item \textit{Recursion decision.} If the longest sequence span is at most \texttt{poa\_threshold} (default 1\,kbp) or recursion depth reaches \texttt{max\_depth} (default 10), the base case applies directly. When the number of sequences exceeds \texttt{seqwish\_threshold} (default 500), seqwish is used instead of POA to avoid $O(N \cdot L)$ memory consumption.
+
+\item \textit{Alignment and anchor selection.} An all-vs-all alignment is computed via sweepga with $k$-mer frequency scaled to the sequence count ($N \times 10$, ensuring seeds are retained among $N$ nearly-identical sequences). The longest sequence serves as the anchor.
+
+\item \textit{Chunk partitioning.} The anchor is divided into overlapping windows of \texttt{chunk\_size} (default 5\,kbp) with \texttt{padding} (default 100\,bp) overlap on each side. For each window, alignment records are used to project the anchor's coordinate range onto every other sequence via linear interpolation through alignment blocks, supporting both forward and reverse strand mappings. Sequences lacking alignment to the anchor are included in every chunk as a fallback.
+
+\item \textit{Parallel recursion.} Chunks are processed in parallel via rayon, each recursively invoking the engine.
+
+\item \textit{Sub-graph lacing.} The resulting sub-GFAs are unified into a single graph. Node IDs are translated into a global namespace. Path ranges---encoded in path names as \texttt{name:start-end}---are sorted, deduplicated, and overlap-trimmed at chunk boundaries by walking node sequences to identify the overlap region and splitting or removing nodes accordingly. Contiguous ranges are linked with new edges, and unused nodes are removed.
+\end{enumerate}
+
+\noindent\textit{Padded POA.} When the POA base case operates on chunk boundaries, alignment quality can degrade at the edges of subsequences. Padded POA addresses this by extending each sequence by a configurable number of flanking bases on each side before running SPOA. After alignment, an MSA is generated to identify the columns corresponding to padding: for each sequence, the algorithm walks MSA columns consuming non-gap characters until the left-padding count is exhausted, then similarly from the right. The core column range is defined as the intersection across all sequences. A fresh SPOA graph is then built from only the core (non-padding) subsequences, ensuring that boundary artifacts from the padding context do not propagate into the final graph. In the recursive engine, padding is handled at the chunk-partitioning level (overlapping windows) rather than at the POA level, and the lacing step trims the resulting overlaps.
+
+\subsection*{Alignment statistics}
+
+The \texttt{stats} command reports diagnostics on alignment indices: the number and total length of query and target sequences, overlap counts (total, mean, and median per sequence), the five most-connected target sequences, and bridge genome coverage---the fraction of target sequences that also appear as queries, indicating bidirectional index completeness. A warning is emitted when bridge coverage falls below 50\% of targets, suggesting the index may benefit from rebuilding without \texttt{--unidirectional}. The \texttt{--list-sequences} flag prints a tab-separated list of sequence names and lengths.
+
+\subsection*{Output merging}
+
+The \texttt{lace} command combines partition outputs: GFA merging resolves node ID conflicts and maintains path continuity; VCF merging performs coordinate sorting and contig validation. Output compression is supported in gzip, bgzip, and zstd formats.
+
+\subsection*{Input and output formats}
+
+Input formats: FASTA files and AGC archives \cite{deorowicz2023agc} for sequences; PAF (uncompressed/BGZF), .1aln \cite{myers2025fastga}, and TPA \cite{tpa} for alignments. Output formats: BED, BEDPE, PAF (intervals and alignments); GFA via seqwish, POA, or recursive engines; MAF (multiple alignment); FASTA with optional gap characters and alignment information.
+
+\subsection*{Benchmarking}
+
+We benchmarked IMPG on 389,234,668 pairwise alignments in 466 TPA files (one per target haplotype, 23.27\,GiB on disk) from 25,221 random haplotype pairs sampled from the Human Pangenome Reference Consortium Phase~2 pangenome (HPRCv2, 466 haplotypes: 464 HPRC haplotypes plus CHM13 and GRCh38 references). All benchmarks were run on an AMD Ryzen 7 PRO 7840U workstation (16 threads) with 57\,GiB RAM using IMPG v0.4.1.
+
+\textcolor{red}{Index creation across all 466 per-file TPA files completed in X\,minutes using 16 threads, producing bidirectional indexes totaling 14.7\,GiB. Bidirectional indexing produced X\,M entries from 389\,M records (not exactly doubled because self-alignments are not duplicated).}
+
+\textcolor{red}{For querying the 6\,Mbp MHC region (CHM13\#0\#chr6:28000000-34000000): direct queries completed in X\,s (TPA approximate) with X\,MiB peak memory; transitive queries in X\,s (TPA approximate).} The complete ready-to-query representation---per-file TPA alignments (23.3\,GiB), bidirectional indexes (14.7\,GiB), TPA auxiliary indexes (1.4\,GiB), and AGC archive (3.1\,GiB)---totals 42.5\,GiB. This is the full representation of 466 human haplotypes: no decompression, graph construction, or additional preprocessing is required to begin querying. At approximately 93\,MiB per haplotype, the per-haplotype cost suggests that datasets of thousands of haplotypes remain tractable on commodity storage.
+
+\subsection*{EBV repeat locus analysis}
+
+We queried the EBNA1-binding tandem repeat cluster at chromosome 11q23, reported at GRCh38 chr11:114,604,212--114,625,620 by \cite{Li2023}. Since GRCh38 is included among the 466 assemblies in the dataset, we queried directly from GRCh38 coordinates using \texttt{impg query} in transitive mode with approximate coordinate projection, projecting through all available alignment paths (all-vs-GRCh38, all-vs-CHM13, and a random subset of all-vs-all) to reach all haplotypes. Repeat region lengths were computed from the projected intervals as the sum of all interval spans per haplotype. To quantify repeat copy number, we extracted FASTA sequences for all projected intervals using \texttt{impg query} with AGC-backed sequence retrieval and counted occurrences of the 18-bp EBNA1 binding motif (GGGTAGCATATGCTACCC) and its reverse complement within Hamming distance $\leq$\,7 in each haplotype's sequence. Superpopulation assignments for HPRC samples were derived from the HPRC Release~2 sample metadata (\url{https://github.com/human-pangenomics/hprc_intermediate_assembly}) using standard 1000 Genomes population-to-superpopulation mappings. Analysis scripts are available in the repository (\texttt{paper-nmeth/scripts/run\_ebv\_analysis.sh}).
+
+\subsection*{Data Availability}
+
+IMPG is freely available at \url{https://github.com/pangenome/impg} under the MIT license (version 0.4.1 used for all benchmarks). Benchmark scripts are included in the repository. Input assemblies are from the HPRCv2 release (\url{https://humanpangenome.org}); the CHM13v2.0 reference is available from the T2T Consortium (\url{https://github.com/marbl/CHM13}). Pre-computed alignments, TPA files, and IMPG indexes for the HPRCv2 dataset are available at Zenodo (DOI: \url{https://doi.org/10.5281/zenodo.XXXXXXX}).
+
+\subsection*{Code Availability}
+
+All source code is available at \url{https://github.com/pangenome/impg} under the MIT license. Scripts for reproducing all analyses presented in this paper are included in the repository.

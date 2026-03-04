@@ -1,0 +1,59 @@
+%%% Supplementary Items
+
+\begin{description}
+    \item[\textbf{A.}] \textbf{Extended Data Figures}
+    \item[\textbf{B.}] \textbf{Supplementary Tables}
+    \item[\textbf{C.}] \textbf{Supplementary Figures}
+\end{description}
+
+\section{Extended Data Figures}
+
+\begin{figure}[H]
+    %\includegraphics[width=\linewidth]{fig/ExtendedDataFigures/Extended_Data_Fig1.pdf}
+    \caption{
+      \textbf{IMPG index architecture.}
+      \textbf{A.} Cache-oblivious interval trees index pairwise alignments by target coordinates, enabling efficient queries without explicit graph construction.
+      \textbf{B.} Index file structure with forest map for lazy loading of target-specific trees.
+    }
+    \label{fig:architecture}
+\end{figure}
+
+\begin{figure}[H]
+    %\includegraphics[width=\linewidth]{fig/ExtendedDataFigures/Extended_Data_Fig2.pdf}
+    \caption{
+      \textbf{Transitive query reach from a non-reference haplotype.}
+      \textcolor{red}{Querying the MHC region from a non-reference haplotype (HG00097\#1) using the per-file TPA dataset (466 files). Direct query recovers X haplotypes (X intervals); transitive query discovers all 466 assemblies (X intervals), demonstrating that the implicit index captures pangenome-wide connectivity.}
+    }
+    \label{fig:transitive_reach}
+\end{figure}
+
+
+\section{Supplementary Tables}
+
+\begin{table}[H]
+\centering
+\caption{\textcolor{red}{IMPG performance on HPRCv2 alignments (466 haplotypes: 464 HPRC + CHM13 + GRCh38; 389\,M pairwise alignments in 466 per-file TPA files). Queries target the 6\,Mbp MHC region (CHM13\#0\#chr6:28000000-34000000). All benchmarks on a 16-core AMD Ryzen 7 PRO 7840U workstation with 57\,GiB RAM running IMPG v0.4.1.}}
+\label{tab:benchmarks}
+\begin{tabular}{@{}lc@{}}
+\toprule
+\textbf{Metric} & \textbf{TPA (466 per-file)} \\
+\midrule
+Alignment records & 389\,M \\
+Alignment size on disk & 23.3\,GiB \\
+Index size (bidirectional)$^{\dagger}$ & 14.7\,GiB \\
+\textcolor{red}{Indexed entries (bidirectional)$^{\dagger}$} & \textcolor{red}{X\,M} \\
+\textcolor{red}{Index time (16 threads)} & \textcolor{red}{X\,min} \\
+\textcolor{red}{Direct query time} & \textcolor{red}{X\,s} \\
+\textcolor{red}{Transitive query time} & \textcolor{red}{X\,s} \\
+\textcolor{red}{Peak memory (query)} & \textcolor{red}{X\,MiB} \\
+\midrule
+\multicolumn{2}{@{}l@{}}{\textit{Complete ready-to-query representation}} \\
+TPA alignments & 23.3\,GiB \\
+Bidirectional indexes & 14.7\,GiB \\
+TPA auxiliary indexes & 1.4\,GiB \\
+AGC archive & 3.1\,GiB \\
+\textbf{Total} & \textbf{42.5\,GiB} \\
+\bottomrule
+\multicolumn{2}{@{}l@{}}{\footnotesize $^{\dagger}$Sum across 466 independent per-file indexes; each record indexed as both forward and reverse.}
+\end{tabular}
+\end{table}

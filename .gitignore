@@ -1,4 +1,6 @@
 .workgraph
+_BIOINF__AG_TracePoints.zip
+reference-tracepoints/
 
 # LaTeX build artifacts
 *.aux

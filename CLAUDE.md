@@ -36,10 +36,12 @@ This repository contains the manuscript for the IMPG (Implicit Pangenome Graphs)
 targeting Bioinformatics (OUP). The paper is structured into `sections/*.tex` files
 that are `\input{}`'d from `main.tex`.
 
-### impg binary
+### impg: Complete Pangenome Graph Construction Pipeline
 
-The impg tool is a git submodule at `./impg/`. We may modify the local copy for
-bug fixes or improvements — agents should rebuild after any changes.
+The impg tool is a git submodule at `./impg/` and has evolved into a **complete pangenome 
+graph construction pipeline**. It embeds core pggb components (sweepga, seqwish, gfasort) 
+and implements the full workflow from sequence input to finished pangenome graphs.
+
 **ALWAYS use the local build for all experiments:**
 
 ```
@@ -51,6 +53,32 @@ If you modify impg source code, rebuild before running experiments:
 ```bash
 cd /home/erik/impg-paper/impg && cargo build --release
 ```
+
+### IMPG Pipeline Architecture
+
+The core impg pipeline follows these stages:
+
+1. **Covering alignments** — Generate all-vs-all or sparsified alignments using embedded sweepga
+2. **Sparsification** — Apply sparsification strategies (`giant:0.99`, `random`, `tree`) at the top level before partitioning
+3. **Partitioning** — Use the partition lace approach to divide the pangenome into manageable windows
+4. **Graph building** — Build graphs per partition using embedded pggb components (sweepga + seqwish)
+5. **Evaluation** — Use panacus to measure pangenome growth and generate basic statistics
+
+### Key Components
+
+- **Embedded sweepga**: All-vs-all alignment generation (replaces wfmash)
+- **Embedded seqwish**: Graph induction from alignments
+- **Embedded gfasort**: Graph optimization and sorting
+- **Sparsification engine**: Reduces O(n²) complexity while maintaining connectivity
+- **Partition system**: Window-based genome division with lacing for reassembly
+- **panacus integration**: For pangenome growth analysis and evaluation metrics
+
+### Sparsification Strategies
+
+Instead of traditional covering alignments, impg uses intelligent sparsification:
+- `giant:0.99` (default): Erdős-Rényi strategy ensuring 99% probability of connected giant component
+- `random:<fraction>`: Random subset of alignment pairs
+- `tree:<k_near>:<k_far>:<rand>`: k-nearest + k-farthest + random pairs based on Mash distances
 
 ### impg development
 

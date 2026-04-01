@@ -70,10 +70,8 @@ to impg should be implementation-quality code suitable for pushing upstream — 
 
 ### Test data
 
-- Yeast 235 genomes (AGC): `/home/erik/scrapy/yeast235.agc`
-- S. cerevisiae chrV: `/home/erik/yeast/cerevisiae.chrV.fa.gz`
-- S. cerevisiae full genome: `/home/erik/yeast/cerevisiae.fa.gz`
-- Yeast 167 genomes: `/home/erik/yeast/yeast167.fa.gz`
+- Main dataset: Yeast 235 genomes (AGC format) - available from https://garrisonlab.s3.amazonaws.com/index.html?prefix=yeast/
+- Quick test subset: S. cerevisiae chrV - available from https://garrisonlab.s3.amazonaws.com/index.html?prefix=yeast/
 
 ### Experiment conventions
 

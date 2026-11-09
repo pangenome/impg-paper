@@ -18,3 +18,4 @@
 - target/release/impg was rebuilt at least 5 times on 2026-11-08 by another process: benchmarks need a frozen tagged binary.
 - A phase-2 judge agent published its report by mistake as a private artifact: https://claude.ai/artifact/9eVLRc3v3JpcjNCNe8zwyk. Not deleted; the user decides.
 - Phase 3+4 result: draft builds (17 pages). Bibliography 90 keys, 78 DOIs checked with Crossref or DataCite (77 of 78 titles matched; the 78th had a Crossref footnote, fixed). impg HEAD moved to 4008ae1 during the run; line numbers in the draft refer to 0987752.
+- Committed draft, notes and workgraph removal as 832da96 on new branch draft/bioinformatics-2026-11, pushed to origin. Pre-existing user changes (sections, main.tex, build files, impg submodule, references/, research/) left uncommitted.

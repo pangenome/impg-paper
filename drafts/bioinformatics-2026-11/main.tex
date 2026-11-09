@@ -1,0 +1,72 @@
+\documentclass[noinfo]{bioinfo}
+\copyrightyear{2026}
+\pubyear{2026}
+
+\usepackage{graphicx}
+\usepackage{booktabs}
+\usepackage{float}
+\usepackage{xcolor}
+\usepackage{amsmath,amssymb}
+\usepackage{tikz}
+\usetikzlibrary{arrows.meta,decorations.pathreplacing,positioning,fit,calc}
+\usepackage[ruled,vlined,linesnumbered]{algorithm2e}
+\usepackage{hyperref}
+\providecommand{\bibcommenthead}{}
+
+% Result that needs an experiment from supporting/plan.md
+\newcommand{\pending}[2]{\textcolor{red}{[#1: #2]}}
+% Decision only the authors can make
+\newcommand{\authornote}[1]{\textcolor{blue}{[Authors: #1]}}
+
+\raggedbottom
+
+\access{Advance Access Publication Date: Day Month Year}
+\appnotes{Original Paper}
+
+\begin{document}
+\firstpage{1}
+\subtitle{Genome analysis}
+
+\title[impg]{impg: querying pangenomes through their pairwise alignments}
+\author[Guarracino \textit{et~al}.]{
+Andrea Guarracino\,$^{\text{\sfb 1,2},*}$,
+Bryce Kille\,$^{\text{\sfb 3}}$,
+Erik Garrison\,$^{\text{\sfb 1},*}$
+}
+\address{
+$^{\text{\sf 1}}$Department of Genetics, Genomics and Informatics, University of Tennessee Health Science Center, Memphis, TN 38163, USA \\
+$^{\text{\sf 2}}$Bioinnovation and Genome Sciences, The Translational Genomics Research Institute (TGen), Phoenix, AZ 85004, USA \\
+$^{\text{\sf 3}}$Illumina Inc., San Diego, CA 92122, USA
+}
+\corresp{$^\ast$To whom correspondence should be addressed.}
+\history{}
+\editor{}
+
+\abstract{\input{sections/00.abstract}}
+
+\maketitle
+
+\input{sections/01.introduction}
+\input{sections/02.model}
+\input{sections/03.implementation}
+\input{sections/04.release}
+\input{sections/05.results}
+\input{sections/06.discussion}
+\input{sections/07.availability}
+
+\bibliographystyle{natbib}
+\bibliography{bibliography}
+
+\clearpage
+\onecolumn
+\section*{Supplementary Material}
+\setcounter{figure}{0}
+\setcounter{table}{0}
+\renewcommand{\thefigure}{S\arabic{figure}}
+\renewcommand{\thetable}{S\arabic{table}}
+\renewcommand{\theHfigure}{S\arabic{figure}}
+\renewcommand{\theHtable}{S\arabic{table}}
+\input{sections/08a.supplement-model}
+\input{sections/08b.supplement-experiments}
+
+\end{document}

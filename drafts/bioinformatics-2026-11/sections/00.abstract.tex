@@ -1,0 +1,30 @@
+% Abstract body for \abstract{} in main.tex.
+% Budget: at most 150 words with headings; each \pending counts as one word once filled.
+\textbf{Motivation:}
+Pangenome graph builders such as PGGB and Minigraph-Cactus build a whole-chromosome or whole-genome graph before one locus can be studied.
+% src: Garrison2024pggb (Table 1 row hsapiens90.chr6, a whole-chromosome graph), Hickey2024minigraphcactus (whole-chromosome or whole-genome builders); plan.md section 5.1; PGR-TK builds local graphs (scratchpad phase1/ft/PMC10406601.txt:14), so the claim is limited to these builders
+Release 2 of the Human Pangenome Reference Consortium (HPRC r2) distributes the pairwise alignments behind its PGGB graph in the TPA format of impg.
+% src: HPRC2026resources README lines 151 and 183 (scratchpad phase1/web/hpp_readme.md:151, 183)
+\\
+\textbf{Results:}
+impg treats pairwise alignments (PAF, TPA or 1ALN) as an implicit pangenome graph.
+% src: /home/guarracino/git/impg src/alignment_record.rs:67-79 (accepted formats); README.md:9-11 ("treats all-vs-all pairwise alignments as an implicit pangenome graph")
+It indexes each alignment in both directions and projects any interval at base level, directly and transitively through other genomes.
+% src: src/impg.rs:1686-1712 (bidirectional insertion), src/impg.rs:2791-2929 (CIGAR projection), src/impg.rs:2379-2628 (BFS closure); tests/test_transitive_integrity.rs:226-290
+impg indexes the 389,234,668 HPRC r2 alignment records in \pending{E2}{index build wall time, h} with \pending{E2}{peak memory, GB}.
+% src: record count = sum of column 2 of drafts/bioinformatics-2026-11/data/partners.tsv (466 rows); records are not distinct alignments, because 2,966 ordered pairs are stored in both files of the pair (data/pairs_out.txt line 2); time and memory from E2
+\authornote{keep this sentence only if the E2 whole-release build completes (flip condition F2, RAM floor 59,163,669,536 bytes, plan.md sections 2 and 4)}
+A 10 kb query against the index of all 466 assemblies takes \pending{E2}{median wall time per query, s}.
+% src: 466 TPA files (hpp_readme.md:183; scratchpad phase2/s3_tpas.xml, 466 keys); wall time from E2
+We report recall against held-out alignments and, on HPRC year-1 chromosome 19, against gene annotations, and cost against Shredtools and the released graph.
+% src: plan.md section 7, experiments E2 (cost against vg chunk on GBZ v3 and Shredtools on hprcv2_merged.bumbl), E3, E5 (HPRC year-1 chr19, 90 haplotypes, CAT GENCODE38)
+\\
+\textbf{Availability and implementation:}
+Rust, MIT license, \url{https://github.com/pangenome/impg}, archived as \pending{C1}{Zenodo version DOI}.
+% src: /home/guarracino/git/impg/Cargo.toml:1-4 (Rust package; no license field), LICENSE (MIT permission text, no title line), README.md:674-676 ("MIT."); git remote origin https://github.com/pangenome/impg
+\\
+\textbf{Contact:} aguarra1@uthsc.edu, erik.garrison@gmail.com
+% src: /home/guarracino/git/impg/README.md:671-672 (author e-mail addresses); main.tex marks authors 1 and 3 as corresponding
+\\
+\textbf{Supplementary information:} Supplementary data are available at \textit{Bioinformatics} online.
+% src: OUP Bioinformatics structured-abstract boilerplate (no fact about code, data or literature)

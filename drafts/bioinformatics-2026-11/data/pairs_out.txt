@@ -1,0 +1,7 @@
+ordered pairs 25221 of 216690 = 11.6392%
+ordered pairs present in both files 2966
+unordered pairs 23738 of 108345 = 21.9096%
+assembly files listing GRCh38#0 45 listing CHM13#0 51 of 464
+non-reference unordered pairs 22809 of 107416 = 21.2343%
+non-reference degree min 74 median 98.0 max 123 nodes 464
+non-reference haplotypes reached of 463 without references: 1 hop min 74 median 98.0 ; 2 hops min 463 median 463.0

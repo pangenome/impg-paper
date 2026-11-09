@@ -1,0 +1,383 @@
+\subsection*{Supplementary Note S5: benchmark protocol}
+
+This note fixes the rules that every experiment in the Results follows, before any run.
+Supplementary Table~\ref{tab:commands} lists the tool versions and the exact commands.
+% src: supporting/plan.md section 7 (rules for every run)
+
+\paragraph{Binary.}
+Every run uses one tagged impg build, and no run uses the \texttt{target/release} binary that other work rebuilds \authornote{tag name and the owner of the frozen build, decision D6}.
+% src: supporting/plan.md sections 4 (binary rebuilt at least 5 times on 2026-11-08) and 9 C1
+Next to each result we store \texttt{sha256sum} of the binary, \texttt{impg -{}-version}, the git commit and the tag.
+% src: supporting/plan.md section 7
+The impg 0.5.0 source under study is commit 0987752, which is 656 commits after the v0.5.0 tag.
+% src: git -C /home/guarracino/git/impg describe --tags (v0.5.0-656-g0987752); impg --version (impg 0.5.0)
+The build also copies the wfmash and FastGA binaries and the WFA2 shared libraries of wfmash next to impg, so we hash them too.
+% src: impg 0987752 build.rs:20-31 (copies wfmash, the WFA2 shared libraries of wfmash, FastGA, FAtoGDB, GIXmake, GIXrm, ALNtoPAF, PAFtoALN, ONEview); VERIFY_CORRECTIONS.md:107
+
+\paragraph{Hardware fields.}
+For each node we report the host name, CPU model, sockets, physical cores, hardware threads, RAM in bytes and swap in bytes.
+We also report the storage device and file system of inputs and scratch, the kernel, the operating system and the scheduler limits.
+The commands \texttt{hostname}, \texttt{lscpu}, \texttt{free -b}, \texttt{df -B1}, \texttt{uname -a} and \texttt{cat /etc/os-release} record these fields.
+The workstation has 16 CPUs and 61,478,674,432 bytes of RAM, an AMD Ryzen 7 PRO 7840U, with kernel 6.14.0-37-generic.
+% src: supporting/plan.md section 4 (nproc, free -b on 2026-11-08); lscpu and uname -r on 2026-11-09
+The cluster node for E2, E3b, E5, E8 and E10 is not chosen \authornote{node and its fields, decision D5 and question Q6}.
+
+\paragraph{Threads.}
+The impg option \texttt{-t} sets the thread count, with a default of 4.
+% src: impg index --help, impg query --help (-t default 4)
+Per-query latency runs use one thread.
+Index builds outside the thread sweeps use 16 threads on the workstation and 32 threads on the cluster node.
+% src: lscpu on 2026-11-09 (1 socket, 8 cores per socket, 2 threads per core); Table S1 (B) E1, E3a, E4, E6 index -t 16; E2, E3b index -t 32
+Thread sweeps use 1, 4, 16 and 48 threads in E2 and 1, 8, 16 and 48 threads in E5, the last as in the Shredtools benchmark.
+% src: supporting/plan.md section 7 E2 and E5; Table S1 (B) E2 batch and E5 index loops; Shivakumar2026shredtools paper.txt:346-349
+The AGC reader opens at most \texttt{IMPG\_AGC\_DECOMPRESSOR\_SLOTS} decompressors, 8 by default and never more than the thread count.
+% src: impg src/agc_index.rs:61-82
+A code comment puts each slot at 3.70 GB on the HPRC release 2 archive, so we set the slots to fit free memory.
+% src: impg src/agc_index.rs:87-100 (code comment, not a measurement in this paper)
+On the workstation we set 2 slots, 7.40 GB by that comment, against 15,510,704,128 available bytes on 2026-11-08.
+% src: supporting/plan.md section 7 (free -b on 2026-11-08); 2 x 3.70 = 7.40 GB (src/agc_index.rs:87-100)
+
+\paragraph{Replicates and cache.}
+Each per-query measurement in E2 runs 5 times, and we report the median and the 95th percentile over regions and replicates.
+% src: supporting/plan.md section 7 E2
+Each index build runs 3 times on the workstation \authornote{replicates of the E2 and E5 cluster builds, 1 or 3}.
+A warm-cache run follows one untimed run of the same command.
+A cold-cache run follows \texttt{sync} and a write of 3 to \texttt{/proc/sys/vm/drop\_caches}, which needs root.
+We run cold-cache arms only where the cluster allows this, and we state which arms are warm.
+% src: supporting/plan.md section 12 Q6
+
+\paragraph{Resource measurement.}
+GNU \texttt{/usr/bin/time -v} wraps every timed command.
+We keep the fields Elapsed (wall clock) time, User time, System time, Maximum resident set size and Exit status.
+A run counts only with exit status 0, a non-empty output and a row count that the harness checks.
+% src: supporting/plan.md section 9 C14
+Identity tests compare the sha256 digests of sorted outputs.
+
+\paragraph{Region sampler.}
+\texttt{bedtools random} v2.31.1 draws each region set with \texttt{-l} for length, \texttt{-n} for count and a fixed \texttt{-seed} \citep{Quinlan2010bedtools}.
+% src: bedtools random -h (v2.31.1, options -l, -n, -seed, -g)
+For E1, E2 and E3a it draws 1,200 regions per set, and we split them in the order drawn into 1,000 for tuning and 200 as holdout.
+% src: supporting/plan.md section 7 E1; Table S1 (B) E1, E2, E3a blocks (-n 1200); E3b -n 100 per haplotype, E4 and E5 -n 1000, E6 -n 100
+We sort each set only after the split.
+The genome file comes from \texttt{impg stats -{}-list-sequences}, without its header line, except in the ScRAP arm of E4, which reads the FASTA indexes.
+% src: impg src/main.rs:13267-13277 (prints a Sequence and Length header, then name and length); Table S1 (B) E4 block (y.genome from scrap142/*.fa.gz.fai)
+The seeds are 1 for E1, 2 for E2, 3 for E3a, 4 for E3b, 5 for E4 and 6 for E5.
+They are 7 for the E6 loci, 8 for the E6 C4 haplotypes, 9 for E7 and 10 for E8.
+% src: supporting/plan.md section 7 E1 to E8
+The harness also fixes the seed of every random pair subset, because \texttt{random:<f>} in impg keeps pairs by a hash threshold.
+% src: sweepga 4713ce0 src/knn_graph.rs:371-392
+
+\paragraph{Tuning and held-out sets.}
+Tuning sets are the 1,000-region sets, the HPRC year-1 chr19 alignments for E4 and the yeast chrV fixture for E6.
+Held-out sets are the 200-region sets, ScRAP 142 for E4 and E9, and the C4 region in 20 haplotypes for E6 \citep{ODonnell2023scrap}.
+% src: supporting/plan.md section 7 E1, E4, E6, E9
+Only tuning sets may choose \texttt{-d}, \texttt{-m}, \texttt{-{}-min-transitive-len}, \texttt{-{}-min-distance-between-ranges} or subset fractions.
+% src: supporting/plan.md section 7 (rules for every run)
+We report tuning and held-out scores side by side.
+The authors fix the pass targets before the runs \authornote{targets for F1 to F5 and the E8 Jaccard target, decision D2}.
+
+\paragraph{Index mode.}
+Every command passes \texttt{-i}, which forces a single index.
+% src: impg src/main.rs:11277-11291
+The same file list goes to index and query, because the index does not record its file order.
+% src: supporting/plan.md section 9 C4 (src/main.rs:11778-11798 vs src/impg.rs:1657-1663)
+The tracepoint reader writes a \texttt{.tpa.idx} file next to each TPA file when one is missing, so the TPA folder must be writable.
+% src: tpa f21b012 src/reader.rs:176-195 (missing or invalid index is rebuilt, then index.save writes <tpa>.idx); local GRCh38 .tpa.idx of 40,256,530 bytes
+
+\clearpage
+\refstepcounter{table}\label{tab:commands}
+\noindent\textbf{Supplementary Table~\thetable.} Tool versions to pin and the commands for each experiment E1 to E10, without warm-up runs, build replicates and the commands that make inputs named only in comments.
+Every impg flag below appears in \texttt{impg <command> -{}-help} of the binary at commit 0987752, built 2026-11-08 22:10:17 -0700.
+% src: help texts in phase2/plan_help_*.txt, byte-identical to the live binary help on 2026-11-09 (cmp)
+External flags come from the local \texttt{-{}-help} of each tool.
+Shredtools, Mumemto, liftOver, paf2chain and gbz-base are not installed, so their commands are not written.
+% src: command -v on the workstation, 2026-11-09
+Scripts with the \texttt{.py} suffix belong to the benchmark harness of code fix C14 and do not exist yet.
+% src: supporting/plan.md sections 7 and 9 C14
+
+\medskip
+\noindent\textbf{(A) Versions.} Versions on the workstation on 2026-11-09, to pin on every machine.
+
+\smallskip
+\noindent{\small
+\begin{tabular}{@{}lll@{}}
+\toprule
+Tool & Version & Used in \\
+\midrule
+impg & tag to cut (C1), source studied at commit 0987752 (impg 0.5.0) & all \\
+wfmash & wfmash-rs 07ed9a3, vendoring wfmash 9b2a738 & E4, E5, E6 \\
+FastGA & fastga-rs 97a7a56 (pinned in Cargo.lock), bundled with impg & E6, \texttt{-o gfa} arm (default aligner) \\
+sweepga & commit 4713ce0 (pinned in Cargo.lock) & E4, E5 \\
+seqwish & v0.7.11-35-gaab5bee & E6 \\
+vg & v1.76.1 & E2, E8 \\
+odgi & v0.9.4-82-g34c461ff & E5 \\
+bedtools & v2.31.1 & E1 to E6, E8 \\
+samtools, bgzip & 1.21 & E3 to E6 \\
+pigz & 2.8 & E3, E7 \\
+agc & 3.2.1 & archive checks (C9) \\
+aws-cli & 2.36.24 & downloads \\
+Python & 3.12.12 & harness \\
+GNU time & /usr/bin/time (version string UNKNOWN) & all \\
+Shredtools & commit to pin (github.com/vikshiv/shredtools) & E2, E5, E10 \\
+Mumemto & v1.4.0 & E5 \\
+liftOver & to install and pin & E3a \\
+\bottomrule
+\end{tabular}}
+% src: --version of each tool on 2026-11-09; impg 0987752 Cargo.lock (fastga-rs rev 97a7a56299b5a565964123eb907e93c4480c9f32); citation-keys.md (wfmash-rs 07ed9a3 vendors wfmash 9b2a738); Shivakumar2026shredtools paper.txt:637-640 (Mumemto v1.4.0)
+
+\medskip
+\noindent\textbf{(B) Commands.} Shared variables, then one block per experiment.
+
+{\scriptsize
+\begin{verbatim}
+# bash. IMPG is the tagged build: record sha256sum $IMPG and $IMPG --version
+IMPG=/path/to/impg-TAG/target/release/impg
+D=/home/guarracino/git/impg/data/hprcv2
+P38=$D/GCA_000001405.15_GRCh38_no_alt_analysis_set.PanSN.merged.paf.gz
+T38=$D/GCA_000001405.15_GRCh38_no_alt_analysis_set.PanSN.merged.edit-distance.128.tpa
+AGC=$D/HPRC_r2_assemblies_0.6.1.agc
+X=/home/guarracino/git/impg-paper/experiments            # workstation scratch
+S=/scratch/aguarracino/impg-paper                        # cluster scratch
+R2=s3://human-pangenomics/pangenomes/freeze/release2
+T='/usr/bin/time -v'
+export IMPG_AGC_DECOMPRESSOR_SLOTS=2       # workstation: slots x 3.70 GB must fit free RAM
+
+# E1. TPA projection against PAF projection (workstation)
+mkdir -p $X/e1 && cd $X/e1
+$T $IMPG index -a $P38 -i paf.impg -f -t 16 2> paf.index.time
+$T $IMPG index -a $T38 -i tpa.impg -f -t 16 2> tpa.index.time
+$IMPG stats -a $P38 -i paf.impg --list-sequences > g38.seqs.tsv
+awk -F'\t' 'NR>1 && $1 ~ /^GRCh38#0#chr[0-9XY]+$/ {print $1"\t"$2}' g38.seqs.tsv > g38.genome
+bedtools random -l 10000 -n 1200 -seed 1 -g g38.genome > r1200.bed
+head -n 1000 r1200.bed | sort -k1,1 -k2,2n > tune.bed
+tail -n 200 r1200.bed | sort -k1,1 -k2,2n > hold.bed
+for b in tune hold; do for m in 1 2 0; do
+  $T $IMPG query -a $P38 -i paf.impg -b $b.bed --no-merge -x -m $m -o bedpe \
+    -O paf.$b.m$m -t 16 2> paf.$b.m$m.time
+  $T $IMPG query -a $T38 -i tpa.impg -b $b.bed --no-merge -x -m $m --sequence-files $AGC -v 2 \
+    -o bedpe -O tpa.$b.m$m -t 16 2> tpa.$b.m$m.time        # -v 2 logs dropped hits
+  $T $IMPG query -a $T38 -i tpa.impg -b $b.bed --no-merge -x -m $m --approximate \
+    -o bedpe -O apx.$b.m$m -t 16 2> apx.$b.m$m.time
+  python3 -I bp_metrics.py --mode identity paf.$b.m$m.bedpe tpa.$b.m$m.bedpe > id.$b.m$m.tsv
+  python3 -I bp_metrics.py --mode delta tpa.$b.m$m.bedpe apx.$b.m$m.bedpe > apx.$b.m$m.tsv
+done; done
+# E1b. A.tpa and B.tpa list each other (picked with data/pairs.py)
+# ab.bed: bedtools random -l 10000 -n 100 -seed 1 on the sequences of A
+$IMPG index -a A.tpa B.tpa -i ab.bi.impg -f -t 16
+$IMPG index -a A.tpa B.tpa -i ab.uni.impg -f --unidirectional -t 16
+$IMPG query -a A.tpa B.tpa -i ab.bi.impg -b ab.bed -d 0 -x -m 2 --sequence-files $AGC \
+  -o bed -O ab.bi -t 16
+$IMPG query -a A.tpa B.tpa -i ab.uni.impg --unidirectional -b ab.bed -d 0 -x -m 2 \
+  --sequence-files $AGC -o bed -O ab.uni -t 16
+
+# E2. Index and query the whole release (cluster)
+mkdir -p $S/e2/tpas $S/e2/q $S/e2/vg && cd $S/e2
+aws s3 cp --no-sign-request --recursive $R2/impg/tpas/ tpas/
+ls $PWD/tpas/*.tpa | sort > tpa466.list && sha256sum tpas/*.tpa > tpa466.sha256
+$T $IMPG index --alignment-list tpa466.list -i r2.impg -t 32 2> r2.index.time
+$IMPG stats --alignment-list tpa466.list -i r2.impg > r2.stats
+$IMPG stats --alignment-list tpa466.list -i r2.impg --list-sequences > r2.seqs.tsv
+awk -F'\t' 'NR>1 && $1 !~ /^(GRCh38|CHM13)#/ {print $1"\t"$2}' r2.seqs.tsv > nonref.genome
+awk -F'\t' 'NR>1 && $1 ~ /^GRCh38#0#chr[0-9XY]+$/ {print $1"\t"$2}' r2.seqs.tsv > g38.genome
+for L in 1000 10000 100000 1000000; do
+  bedtools random -l $L -n 1200 -seed 2 -g nonref.genome > nr.$L.bed; done
+bedtools random -l 10000 -n 1200 -seed 2 -g g38.genome > g38.10000.bed
+for m in 1 2; do for rep in 1 2 3 4 5; do
+  while read -r c b e n rest; do
+    $T $IMPG query --alignment-list tpa466.list -i r2.impg -r "$c:$b-$e" -d 0 -x -m $m \
+      --sequence-files $AGC -o bedpe -O q/g38.$m.$rep.$n -t 1 2> q/g38.$m.$rep.$n.time
+  done < <(head -n 1000 g38.10000.bed)
+done; done
+for L in 1000 10000 100000 1000000; do for m in 1 2; do for rep in 1 2 3 4 5; do
+  while read -r c b e n rest; do
+    $T $IMPG query --alignment-list tpa466.list -i r2.impg -r "$c:$b-$e" -d 0 -x -m $m \
+      --sequence-files $AGC -o bedpe -O q/ex.$L.$m.$rep.$n -t 1 2> q/ex.$L.$m.$rep.$n.time
+    $T $IMPG query --alignment-list tpa466.list -i r2.impg -r "$c:$b-$e" -d 0 -x -m $m \
+      --approximate -o bedpe -O q/ap.$L.$m.$rep.$n -t 1 2> q/ap.$L.$m.$rep.$n.time
+  done < <(head -n 1000 nr.$L.bed)
+done; done; done
+head -n 1000 nr.10000.bed > nr.10000.tune.bed
+for t in 1 4 16 48; do
+  $T $IMPG query --alignment-list tpa466.list -i r2.impg -b nr.10000.tune.bed -d 0 -x -m 2 \
+    --sequence-files $AGC -o bedpe -O batch.t$t -t $t 2> batch.t$t.time; done
+$T $IMPG query --alignment-list tpa466.list -i r2.impg -r 'CHM13#0#chr1' -d 0 -o bed \
+  --sequence-files $AGC -O chr1 -t 16 2> chr1.time
+GBZ=20250930_hprc25272.p98-k311.tmp.fix.v3.gbz
+aws s3 cp --no-sign-request $R2/pggb/gfas/whole-genome/$GBZ .
+for rep in 1 2 3 4 5; do while read -r c b e n rest; do   # vg chunk -p: 0-based inclusive
+  $T vg chunk -x $GBZ -p "$c:$b-$((e-1))" -c 0 -O gfa -t 1 > vg/$n.gfa 2> vg/$n.$rep.time
+done < <(head -n 1000 g38.10000.bed); done
+aws s3 cp --no-sign-request s3://genome-idx/mumemto/hprc/hprcv2_merged.bumbl .
+aws s3 cp --no-sign-request s3://genome-idx/mumemto/hprc/hprcv2_merged.bumbl.bi .
+# Shredtools extract on hprcv2_merged.bumbl with g38.10000.bed: not written (not installed)
+
+# E3a. GRCh38 to CHM13 through haplotypes (workstation)
+mkdir -p $X/e3a && cd $X/e3a
+aws s3 cp --no-sign-request \
+  $R2/impg/pafs/all-vs-1/chm13v2.0_maskedY_rCRS.fa.PanSN.merged.paf.gz chm13.paf.gz
+pigz -dc $P38 | awk -F'\t' '$1 !~ /^CHM13#/' | bgzip -@ 8 > g38.noCHM13.paf.gz
+pigz -dc chm13.paf.gz | awk -F'\t' '$1 !~ /^GRCh38#/' | bgzip -@ 8 > chm13.noGRCh38.paf.gz
+$IMPG index -a $P38 chm13.paf.gz -i full.impg -f -t 16
+$IMPG index -a g38.noCHM13.paf.gz chm13.noGRCh38.paf.gz -i held.impg -f -t 16
+bedtools random -l 1000 -n 1200 -seed 3 -g ../e1/g38.genome > g38.1k.raw.bed
+head -n 1000 g38.1k.raw.bed | sort -k1,1 -k2,2n > g38.1k.bed      # last 200: holdout
+$IMPG query -a $P38 chm13.paf.gz -i full.impg -b g38.1k.bed -d 0 -o bedpe -O direct -t 16
+for m in 2 3; do
+  $IMPG query -a g38.noCHM13.paf.gz chm13.noGRCh38.paf.gz -i held.impg -b g38.1k.bed -d 0 \
+    -x -m $m -o bedpe -O held.m$m -t 16; done
+# chain arm: liftOver of g38.1k.bed with the public chain: not written (not installed)
+
+# E3b. Held-out partners on the release (cluster, after E2)
+mkdir -p $S/e3b && cd $S/e3b       # q10.txt: 10 SAMPLE#HAP (seed 4), Qi.paf.gz and Pi per pair
+awk -F'\t' 'NR>1 && $1 !~ /^(GRCh38|CHM13)#/ {print $1}' ../e2/r2.seqs.tsv > nonref_contigs.txt
+while read -r q; do
+  awk -F'\t' -v q="$q#" 'NR>1 && index($1,q)==1 {print $1"\t"$2}' ../e2/r2.seqs.tsv > $q.genome
+  bedtools random -l 10000 -n 100 -seed 4 -g $q.genome          # last 20 per Q_i: holdout
+done < q10.txt > q10.bed
+# per Q_i: drop the partner's records from the per-target PAF of Q_i
+pigz -dc Qi.paf.gz | awk -F'\t' -v p="$Pi#" 'index($1,p)!=1' | bgzip -@ 8 > Qi.held.paf.gz
+grep -v -F -f q10_tpa_stems.txt ../e2/tpa466.list > held.list
+ls $PWD/*.held.paf.gz >> held.list                     # 456 TPA + 10 filtered PAF
+$T $IMPG index --alignment-list held.list -i held.impg -f -t 32 2> held.index.time
+$IMPG query --alignment-list ../e2/tpa466.list -i ../e2/r2.impg -b q10.bed -d 0 \
+  --sequence-files $AGC -o bedpe -O truth.direct -t 16
+for m in 1 2 3 4 0; do
+  $IMPG query --alignment-list held.list -i held.impg -b q10.bed -d 0 -x -m $m \
+    --sequence-files $AGC -o bedpe -O held.refs.m$m -t 16
+  $IMPG query --alignment-list held.list -i held.impg -b q10.bed -d 0 -x -m $m \
+    --subset-sequence-list nonref_contigs.txt --sequence-files $AGC \
+    -o bedpe -O held.norefs.m$m -t 16
+done
+
+# E4. Sparse alignment sets (ScRAP 142 holdout here, chr19 tuning after E5)
+mkdir -p $X/e4 && cd $X/e4        # scrap142/*.fa.gz: one bgzipped, faidx-indexed FASTA per strain
+$IMPG align --sequence-files scrap142/*.fa.gz --wfmash --format joblist --sparsify auto \
+  -o jobs_auto                                    # writes jobs_auto/align_jobs.txt
+$T $IMPG align --sequence-files scrap142/*.fa.gz --wfmash --format paf --sparsify none \
+  -o y_all -t 16 2> y_all.align.time              # writes y_all/alignments.paf
+for f in 0.06 0.17; do python3 -I subset_pairs.py --paf y_all/alignments.paf --mode random \
+  --fraction $f --seed 1 > r$f.paf; done
+python3 -I subset_pairs.py --paf y_all/alignments.paf --mode joblist \
+  --jobs jobs_auto/align_jobs.txt > auto.paf
+python3 -I subset_pairs.py --paf y_all/alignments.paf --mode star --hub "$HUB" > star.paf
+cp y_all/alignments.paf all.paf
+for s in all r0.06 r0.17 auto star; do bgzip -f -@ 8 $s.paf
+  $IMPG index -a $s.paf.gz -i $s.impg -f -t 16; done
+cat scrap142/*.fa.gz.fai | awk -F'\t' -v h="$HUB#" 'index($1,h)!=1 {print $1"\t"$2}' > y.genome
+bedtools random -l 10000 -n 1000 -seed 5 -g y.genome | sort -k1,1 -k2,2n > y_r1000.bed
+$IMPG query -a all.paf.gz -i all.impg -b y_r1000.bed -d 0 -o bedpe -O truth.direct -t 16
+for s in r0.06 r0.17 auto star; do for m in 1 2 3 4 0; do
+  $IMPG query -a $s.paf.gz -i $s.impg -b y_r1000.bed -d 0 -x -m $m -o bedpe -O $s.m$m -t 16
+done; done
+
+# E5. Gene-level accuracy and Shredtools on HPRC year-1 chr19 (cluster)
+mkdir -p $S/e5/hap $S/e5/lat $S/e5/cat && cd $S/e5
+aws s3 cp --no-sign-request \
+  s3://human-pangenomics/pangenomes/freeze/freeze1/pggb/chroms/chr19.hprc-v1.0-pggb.gfa.gz .
+CATB=s3://human-pangenomics/submissions
+CATD=FC7E9302-5A35-4A4F-9D4A-B3E957118E36--Y1_CAT_ANNOTATION_GENCODE38
+aws s3 cp --no-sign-request --recursive --exclude '*' --include '*.chm13.gff3.gz' \
+  $CATB/$CATD/ cat/                                      # 89 files, 8,452,176,760 bytes
+zcat chr19.hprc-v1.0-pggb.gfa.gz > chr19.gfa
+odgi build -g chr19.gfa -o chr19.og -t 48
+odgi paths -i chr19.og -f > chr19.paths.fa
+python3 -I split_by_haplotype.py chr19.paths.fa hap/     # bgzip + samtools faidx per haplotype
+$IMPG align --sequence-files hap/*.fa.gz --wfmash --format joblist --sparsify auto -o jobs_auto
+$T $IMPG align --sequence-files hap/*.fa.gz --wfmash --format paf --sparsify none \
+  -o aln_all -t 48 2> align.all.time
+cp aln_all/alignments.paf all.paf
+python3 -I cat_to_bed.py --gff cat/CHM13.chm13.gff3.gz --chrom chr19 --names seqmap.tsv \
+  > cat_genes_chm13_chr19.bed                       # CAT seqid to PanSN path name join
+for f in 0.17 0.06; do python3 -I subset_pairs.py --paf all.paf --mode random --fraction $f \
+  --seed 1 > r$f.paf; done
+python3 -I subset_pairs.py --paf all.paf --mode joblist --jobs jobs_auto/align_jobs.txt > auto.paf
+python3 -I subset_pairs.py --paf all.paf --mode star --hub 'CHM13#' > star.paf
+for s in all r0.17 r0.06 auto star; do bgzip -f -@ 16 $s.paf
+  for t in 1 8 16 48; do
+    $T $IMPG index -a $s.paf.gz -i $s.t$t.impg -f -t $t 2> $s.index.t$t.time; done
+  [ -s chr19.genome ] || $IMPG stats -a $s.paf.gz -i $s.t48.impg --list-sequences \
+    | awk -F'\t' 'NR>1 {print $1"\t"$2}' > chr19.genome
+  [ -s rand1000.bed ] || bedtools random -l 10000 -n 1000 -seed 6 -g chr19.genome > rand1000.bed
+  $IMPG query -a $s.paf.gz -i $s.t48.impg -b cat_genes_chm13_chr19.bed -d 0 -x -m 2 \
+    -o bedpe -O genes.$s -t 16
+  while read -r c b e n rest; do
+    $T $IMPG query -a $s.paf.gz -i $s.t48.impg -r "$c:$b-$e" -d 0 -x -m 2 -o bed \
+      -O lat/$s.$n -t 1 2> lat/$s.$n.time
+  done < rand1000.bed
+done
+python3 -I bp_metrics.py --mode genes --truth cat/ --calls genes.all.bedpe   # each subset
+# Shredtools and Mumemto on hap/*.fa.gz: not written (not installed)
+# E4 chr19 tuning arm (cluster, E5 folder)
+bedtools random -l 10000 -n 1000 -seed 5 -g chr19.genome | sort -k1,1 -k2,2n > c19_r1000.bed
+$IMPG query -a all.paf.gz -i all.t48.impg -b c19_r1000.bed -d 0 -o bedpe -O c19.truth -t 16
+for s in r0.17 r0.06 auto star; do for m in 1 2 3 4 0; do
+  $IMPG query -a $s.paf.gz -i $s.t48.impg -b c19_r1000.bed -d 0 -x -m $m -o bedpe \
+    -O c19.$s.m$m -t 16; done; done
+
+# E6. Local graphs and restriction (workstation)
+mkdir -p $X/e6 && cd $X/e6
+zcat /home/guarracino/git/impg/tests/test_data/yeast.chrV.fa.gz > yeast.chrV.fa  # gzip, not bgzip
+samtools faidx yeast.chrV.fa && Y=$PWD/yeast.chrV.fa
+$IMPG align --sequence-files $Y --wfmash --format paf --sparsify none -o aln -t 16
+seqwish -p aln/alignments.paf -s $Y -g global.k0.gfa -k 0 -t 16
+seqwish -p aln/alignments.paf -s $Y -g global.k23.gfa -k 23 -t 16
+bgzip -c aln/alignments.paf > aln.paf.gz && $IMPG index -a aln.paf.gz -i aln.impg -f -t 16
+while read -r c b e n rest; do                     # loci100.bed: bedtools random -n 100 -seed 7
+  $IMPG query -a aln.paf.gz -i aln.impg -r "$c:$b-$e" -x -m 0 --min-transitive-len 0 \
+    --min-distance-between-ranges 0 --no-merge -o paf -O C.$n -t 16
+  seqwish -p C.$n.paf -s $Y -g R.$n.k0.gfa -k 0 -t 16
+  seqwish -p C.$n.paf -s $Y -g R.$n.k23.gfa -k 23 -t 16
+  $IMPG query -a aln.paf.gz -i aln.impg -r "$c:$b-$e" -x --no-merge -o paf -O D.$n -t 16
+  seqwish -p D.$n.paf -s $Y -g RD.$n.k0.gfa -k 0 -t 16
+  $IMPG query -a aln.paf.gz -i aln.impg -r "$c:$b-$e" -x -m 0 --min-transitive-len 0 \
+    --min-distance-between-ranges 0 -d 0 -o gfa --gfa-engine seqwish --sequence-files $Y \
+    -O T.$n -t 16
+  for a in "k0 R.$n.k0" "k23 R.$n.k23" "k0 RD.$n.k0" "k0 T.$n"; do set -- $a
+    python3 -I compare_classes.py --global global.$1.gfa --local $2.gfa --closure C.$n.paf \
+      > cmp.$2.tsv; done                        # denominator: the bases of closure C
+done < loci100.bed
+# C4 holdout: 20 haplotypes (seed 8) from the E1 star index; then the same steps on c4_20.fa
+$IMPG query -a $P38 -i ../e1/paf.impg -r 'GRCh38#0#chr6:31891045-32123783' -d 0 \
+  --subset-sequence-list c4_20_contigs.txt --sequence-files $AGC -o fasta -O c4_20 -t 16
+# c4_20.fa names carry ':start-end', so -r on them needs an explicit range, e.g.
+# -r 'GRCh38#0#chr6:31891045-32123783:0-232738'
+
+# E7. Copy representation in the released alignments (workstation)
+mkdir -p $X/e7 && cd $X/e7          # a1..a3.paf.gz: 3 assembly per-target PAF.gz files, seed 9
+for f in $P38 ../e3a/chm13.paf.gz a1.paf.gz a2.paf.gz a3.paf.gz; do
+  k=$(basename $f .paf.gz)
+  while read -r c b e n rest; do
+    pigz -dc -p 4 "$f" | cut -f1-12 \
+      | awk -F'\t' -v c="$c" -v b="$b" -v e="$e" '$6==c && $8<e && $9>b' > $k.$n.tsv
+    python3 -I locus_depth.py --start $b --end $e $k.$n.tsv >> depth.tsv
+  done < loci.$k.bed                                # locus coordinates in each target
+done
+
+# E8. Consistency with the released PGGB graph (cluster, after E2)
+cd $S/e2 && mkdir -p cons        # cons.bed: 1,000 GRCh38 + 1,000 non-reference 10 kb, seed 10
+$IMPG query --alignment-list tpa466.list -i r2.impg -b cons.bed -d 0 -x -m 2 \
+  --sequence-files $AGC -o bed -O cons.impg -t 16
+while read -r c b e n rest; do
+  vg chunk -x $GBZ -p "$c:$b-$((e-1))" -c 0 -O gfa -t 1 > cons/$n.gfa
+done < cons.bed
+python3 -I chunk_paths_to_bed.py cons/ > cons.vg.bed
+python3 -I bp_metrics.py --mode jaccard cons.impg.bed cons.vg.bed --strata strata.bed
+
+# E9. Alignment-backed partition audit on ScRAP 142 (workstation, after E4)
+cd $X/e4
+$T $IMPG partition -a all.paf.gz -i all.impg -w 10000 -d 1000 --selection-mode haplotype \
+  -o bed --output-folder part -t 16 2> part.time
+python3 -I exact_once_audit.py --bed-dir part --fai scrap142/*.fa.gz.fai > part.audit.tsv
+
+# E10. Locus refinement against Shredtools zoom (cluster, after E2)
+cd $S/e2       # tert_igk.bed: IGKV6-21 CHM13#0#chr2 89168753 89169041, TERT from the annotation
+$T $IMPG refine --alignment-list tpa466.list -i r2.impg -b tert_igk.bed -d 10k -x -m 2 \
+  --pansn-mode haplotype --span-bp 1000 --max-extension 0.5 --extension-step 1000 \
+  --support-output refine.support.bed --sequence-files $AGC -t 16 > refine.tsv 2> refine.time
+$T $IMPG refine --alignment-list tpa466.list -i r2.impg -b tert_igk.bed -d 10k -x -m 2 \
+  --pansn-mode haplotype --span-bp 1000 --max-extension 0.5 --extension-step 1000 \
+  --subset-sequence-list t2t15.txt --support-output refine15.support.bed \
+  --sequence-files $AGC -t 16 > refine15.tsv 2> refine15.time
+# Shredtools enhance and zoom on hprcv2_merged.bumbl: not written (not installed)
+\end{verbatim}
+}

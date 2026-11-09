@@ -1,0 +1,258 @@
+% Supplement, part a: model notes S1-S4.
+% Source paths in "% src:" comments.
+%   src/..., tests/... and Cargo.toml are relative to /home/guarracino/git/impg at HEAD 0987752 (impg 0.5.0).
+%   T: is short for tests/test_transitive_integrity.rs.
+%   sweepga@4713ce0 is /home/guarracino/.cargo/git/checkouts/sweepga-d4f4c2d347bec45b/4713ce0 (Cargo.toml:71).
+%   seqwish@0a7e580 is /home/guarracino/.cargo/git/checkouts/seqwish-be7416204a0fe48d/0a7e580 (Cargo.lock:2872-2874).
+%   seqwish-cpp is /home/guarracino/git/seqwish/cpp (checkout 97d603f).
+%   "impg <cmd> --help" refers to /tmp/claude-1000/-home-guarracino-git-impg-paper/ed3cfa77-35b3-454f-91de-3d0a63c6ad53/scratchpad/phase2/plan_help_<cmd>.txt.
+%   VERIFY_CORRECTIONS.md is /tmp/claude-1000/-home-guarracino-git-impg-paper/ed3cfa77-35b3-454f-91de-3d0a63c6ad53/scratchpad/phase1/VERIFY_CORRECTIONS.md.
+% Nothing in this note was run. "Asserted" means a test checks the value, and "derived" means we followed the code by hand.
+% In S2, S3 and S4 the line numbers in parentheses are the sources of each step.
+
+\subsection*{Supplementary Note S1: worked example}
+
+We trace fixtures of tests/test\_transitive\_integrity.rs through Section \ref{sec:model}, with every input coordinate copied from the test.
+% src: T:1-915
+A value marked asserted is checked by the test, and a value marked derived follows from the code and was not run.
+
+\textbf{Two entries per record.}
+The record \texttt{A 1000 0 100 + B 1000 200 300 \dots{} cg:Z:100=} enters the tree of B and, as a REVERSED entry, the tree of A.
+% src: T:231; src/impg.rs:1666-1709
+A:0-100 projects to B:200-300, and B:200-300 projects to A:0-100 (both asserted).
+% src: T:237-262, 264-289
+
+\textbf{An insertion.}
+The record \texttt{A 1000 0 110 + B 1000 0 100 \dots{} cg:Z:50=10I50=} leaves A:50-60 without a partner in B.
+% src: T:457-462
+The REVERSED entry in the tree of A reads the inverted CIGAR \texttt{50=10D50=}.
+% src: src/impg.rs:142-162, 651-654; unit tests src/impg.rs:3232-3290
+A:0-50 projects to B:0-50 and A:60-110 to B:50-100 (derived).
+% src: hand trace of src/impg.rs:2791-2929
+The test asserts that the B ends next to the insertion lie in 45 to 55.
+At the outer ends, it asserts only a start of at most 5 and an end of at least 95.
+% src: T:492-497 (b_start <= 5, 45 <= b_end <= 55), 523-528 (45 <= b_start <= 55, b_end >= 95)
+A:45-65 projects to B:45-55, so 20 bases of A give 10 bases of B (derived).
+% src: src/impg.rs:2853-2871 (deletion columns add no query base)
+In the other direction, B:0-100 projects to A:0-110, because the hull includes the \texttt{10I} run (derived).
+% src: src/impg.rs:2838-2852
+
+\textbf{Reverse strand.}
+For \texttt{A 1000 0 100 - B 1000 0 100 \dots{} cg:Z:100=}, the walk for A:0-50 starts at B position 100 and moves down.
+% src: T:302; src/impg.rs:2808-2813, 2873-2898
+It returns the pair (100, 50), which the BED writer prints as B:50-100 on strand $-$ (derived).
+% src: src/main.rs:12074-12078
+The test asserts only that the midpoint of the B row is at least 50.
+% src: T:333-341
+
+\textbf{A two-hop closure.}
+Two \texttt{cg:Z:100=} records, \texttt{A 1000 0 100 + B 1000 0 100} and \texttt{B 1000 0 100 + C 1000 0 100}, form a chain.
+% src: T:160-163
+The test queries A:25-75 at $m=2$, $\ell=0$ and $\delta=10$.
+% src: T:170-186; src/main.rs:4236, 4247
+At depth 0 the tree of A holds one entry, the REVERSED copy of the first record, which gives B:25-75 for the next frontier.
+% src: src/impg.rs:2405-2441, 1686-1712, 2574-2588
+At depth 1 the tree of B gives A:25-75, already visited, and C:25-75, which is new.
+% src: src/impg.rs:1666-1709, 2578-2588
+The loop then stops at $k=m=2$, and BED output with \texttt{-d 0} merges the two A rows (derived).
+% src: src/impg.rs:2444; src/main.rs:12055-12071
+The test asserts 45 to 55 bp per row, with B and C starting at 20 to 30 and ending at 70 to 80.
+% src: T:192-217
+On the chain A, B, C, D it asserts that $m=1$ returns A and B only, and that $m=2$ adds C but not D.
+% src: T:693-698, 728-735, 761-766
+
+\textbf{Snapping adds reach that no alignment supports.}
+The 5 bp gap fixture aligns C:0-1000 and B:0-1000 to A:0-1000, C:1005-2005 to B:0-1000, D:0-300 to C:1605-1905 and E:0-4 to C:1000-1004.
+% src: T:786, 795-800
+The test queries A:0-1000 at $m=0$, $\ell=101$ and $\delta=10$.
+% src: T:809-816; src/main.rs:4247, 4253-4255
+At depth 1, B:0-1000 projects to C:1005-2005, which starts 5 bp after the visited end 1000.
+% src: T:798; src/impg.rs:2452-2533 (derived)
+Since 5 is less than 10, the new part snaps to C:1000-2005 and enters the frontier.
+% src: src/impg.rs:296-298, 2578-2588 (derived)
+At depth 2 this part overlaps the E record on C:1000-1004, so E:0-4 is reported, and D:0-300 is reached as well.
+% src: src/impg.rs:2466-2471, 2559-2571 (derived)
+The test asserts D and E:0-4, and it asserts that the C rows stay exactly C:0-1000 and C:1005-2005.
+% src: T:820-844
+With $\delta=0$, or with a 15 bp gap at $\delta=10$, it asserts that E is not reported.
+% src: T:787, 825-830, 846-858
+No projection covers C:1000-1005 and no alignment chain links E to A, so snapping alone put E into the closure.
+% src: T:795-800
+
+\textbf{Strand over two reverse hops.}
+No fixture has two reverse-strand hops, so this case is derived only.
+% src: T:298-342 (one reverse hop only)
+With both records of the chain on strand $-$, A:25-75 projects to the pair (75, 25) on B, and $V_B$ keeps B:25-75 without orientation.
+% src: src/impg.rs:282-286, 374-379, 2808-2813
+B:25-75 then gives the pair (75, 25) on C, so the BED row reads C:25-75 on strand $-$.
+After two reverse complements, C:25-75 has strand $+$ relative to A.
+% src: src/main.rs:12074-12078
+\authornote{Decision D3: this case is the fixture that code fix C7 needs, whichever semantics the authors choose.}
+
+\subsection*{Supplementary Note S2: proofs}
+
+$V_x$ is the visited set of sequence $x$ when Algorithm \ref{alg:bfs} stops, $V$ is the union of the $V_x$, and line numbers refer to src/impg.rs.
+
+\textbf{Assumptions of Proposition \ref{prop:closed}.}
+(A1) One combined index, built with bidirectional insertion from every record of $A$ (lines 1686-1712), and not the per-file mode (src/multi\_impg.rs:813-952).
+(A2) The default breadth-first search, not \texttt{-{}-transitive-dfs} (src/main.rs:4229-4232).
+(A3) Exact projection of PAF records with CIGARs.
+For TPA and 1ALN records, $a$ is the alignment of the rebuilt CIGAR, and no hit is dropped.
+A segment also rebuilds to the same columns whatever range triggers it.
+\authornote{We did not check this last part of (A3) in the code. E1 tests its consequence on the release data.}
+(A4) $m=0$, $\ell\le 1$ and $\delta=0$.
+(A5) No identity filter, subset filter, mask or \texttt{-l} (lines 2553-2557).
+(A6) Sequences shorter than $2^{31}$ bp and CIGAR operations shorter than $2^{29}$ bp (lines 81-109, 164-174).
+(A7) $|I|\ge\ell$, which the CLI enforces (src/main.rs:7475-7480, 10598-10614).
+
+\textbf{Lemma 1 (hull).}
+Let $r$ be an entry on sequence $x$ and $J$ a non-empty interval inside the span of $r$ on $x$.
+If an aligned column of $r$ joins $b\in J$ to $c$, then $\pi_r(J)$ is not empty and contains $c$.
+
+\emph{Proof.}
+The walk visits the operations in order and stops only after passing the end of $J$ (lines 2829-2835).
+The operation that holds the column of $b$ overlaps $J$, so it extends the hull over its overlap, which includes $c$ (lines 2873-2894).
+Query positions move in one direction along the walk, so the hull from the first to the last recorded position contains $c$.
+That operation adds at least one base on each side, so the tests at lines 2905-2907 pass.
+A REVERSED entry first inverts the CIGAR (lines 142-162, 651-654), which keeps the same columns with query and target swapped (unit tests at lines 3232-3290).
+$\square$
+
+\textbf{Lemma 2 (frontier coverage).}
+Under (A4), (A5) and (A7), every base of $V$ lies in a frontier interval that the loop processes.
+
+\emph{Proof.}
+Without masks, $I$ enters $V_j$ and the first frontier whole (lines 2399-2441).
+A later projection $K$ onto $y\neq x$ enters $V_y$ through \texttt{insert}, because $\delta=0$ (lines 276-278).
+With distance 0 in every visited set (lines 2145-2159), \texttt{insert} snaps to nothing.
+It returns exactly the parts of $K$ not yet in $V_y$ (lines 374-457).
+Each part has at least one base, so $\ell\le 1$ puts it in the next frontier (line 2585), and merging keeps the union (lines 2597-2615).
+With $m=0$ the loop runs until the frontier is empty (line 2444).
+$\square$
+
+\textbf{Termination.}
+Each non-empty frontier holds only bases new to $V$, and $V$ never shrinks, so the loop runs at most $1+\sum_i|s_i|$ depths.
+
+\textbf{Proof of Proposition \ref{prop:closed}.}
+Let $b\in V_x$, and let $r\in A$ between $x$ and $y\neq x$ align $b$ to $c$.
+By Lemma 2, $b$ lies in a processed frontier interval $(x,J)$.
+By (A1), the tree of $x$ holds a copy of $r$, forward if $x$ is its target and REVERSED if $x$ is its query.
+The tree query keeps every entry with a non-empty overlap with $J$ (lines 2460-2471), and this overlap contains $b$.
+By Lemma 1 the projection contains $c$, and by (A5) no filter removes it.
+Since $y\neq x$, line 2575 inserts it into $V_y$, so $c\in V$.
+$\square$
+
+\textbf{Corollary.}
+If no record of $A$ joins a sequence to itself, every match joins two different sequences.
+Induction on chain length then shows that $V$ contains the $\equiv_A$ class of every base of $I$.
+Every reported row is then $I$ or a projection that line 2575 inserted with $\delta=0$, so $H_0(I)=V$.
+The containment is strict in general, because projections include insertions and mismatches.
+
+\textbf{What fails without each assumption.}
+With $m>0$, bases more than $m$ hops away are missing.
+With $\ell>1$, a part shorter than $\ell$ is visited but never queried (line 2585).
+With $\delta>0$, snapping adds fewer than $\delta$ uncovered bases at each end of a projection and can drop fewer than $\delta$ bases before the end of a part (lines 296-303, 321-335).
+A filtered hit is neither written nor expanded, and masked bases never enter a frontier.
+With \texttt{-l}, a row shorter than the limit still enters $V$ but is not written, so $H_0(I)$ can miss bases of $V$ (lines 2553-2588).
+With \texttt{-{}-unidirectional}, the tree of $x$ misses $r$ when $x$ is the query of $r$.
+Self-hits are written but not expanded (line 2575).
+With \texttt{-{}-approximate} the boundary is interpolated (lines 1471-1520), and Lemma 1 can fail.
+A dropped tracepoint hit removes its columns (lines 1230-1236, 1247-1254, 1330-1338).
+
+\textbf{Assumptions of Proposition \ref{prop:restrict}.}
+(B1) A seqwish match is an \texttt{M}, \texttt{=} or \texttt{X} column with equal bases, not \texttt{N}, at different positions (seqwish@0a7e580 src/alignments.rs:133, 202-204, and seqwish-cpp src/alignments.cpp:54-83).
+(B2) seqwish runs with \texttt{-k} at most 1 and with \texttt{-r}, \texttt{-l} and \texttt{-f} at their default 0.
+Each of these four options can depend on context outside $C$ (seqwish \texttt{-{}-help}).
+(B3) seqwish puts two oriented positions in one node class exactly when the closure of its matches makes them equivalent \citep{Garrison2023seqwish}.
+\authornote{(B3) is the definition in the seqwish paper. We did not check in the seqwish code that the batched transitive closure (-B) gives the same classes for every batch size.}
+(B4) $C$ is closed under $R(A)$.
+(B5) $A|_C$ has exactly the aligned columns of $A$ with both bases in $C$, with the same bases and strands.
+(B6) Both runs read the same sequences.
+We compare node classes, not node identifiers or node boundaries, because compaction can cut nodes differently at the ends of $C$.
+
+\textbf{Proof of Proposition \ref{prop:restrict}.}
+Let $Q_C$ be the oriented positions of the bases of $C$.
+By (B1) and (B5), $R(A|_C)=R(A)\cap(Q_C\times Q_C)$, and by (B2) seqwish keeps every match in both runs.
+For $u,v\in Q_C$, a chain of matches of $A|_C$ is a chain of matches of $A$, so $u\equiv_{A|_C}v$ implies $u\equiv_A v$.
+Conversely, by (B4) and induction, every link of a chain of matches of $A$ from $u$ stays in $Q_C$ and so lies in $R(A|_C)$.
+Hence the two relations agree on $Q_C$, every class of $\equiv_A$ that meets $Q_C$ lies inside it, and (B3) gives the claim.
+$\square$
+
+\textbf{Why \texttt{-k} must be at most 1.}
+Closedness allows a run of 5 matches with 2 columns outside $C$ and 3 inside, cut at the same column on both sequences.
+At \texttt{-k 4}, seqwish keeps the run of 5 in $G(A)$ and drops the run of 3 in $G(A|_C)$ (seqwish@0a7e580 src/alignments.rs:141).
+
+\textbf{Link between the propositions.}
+Under (A1) to (A7) with no self-alignment, $V$ is closed under $R(A)$, so Proposition \ref{prop:restrict} applies with $C=V$.
+With \texttt{-{}-no-merge} and \texttt{-o paf}, every processed frontier interval $J$ and entry $r$ give one row with the CIGAR slice of $r$ over $J$.
+% src: lines 2509-2523, 2559-2571; src/main.rs:12195-12295
+By Lemma 2 and Proposition \ref{prop:closed}, the matches of these rows are exactly $R(A)\cap(Q_V\times Q_V)$, and columns written twice do not change the closure.
+seqwish on these rows should therefore give the classes of $G(A)$ over $V$.
+We derived this from the code, no test covers PAF output on the alignment backend, and \texttt{-o gfa} does not use these rows.
+% src: VERIFY_CORRECTIONS.md (query output formats); src/main.rs:12324-12340
+\pending{E6}{bases of V whose node class differs between seqwish on the closure PAF and the global seqwish graph, on yeast chrV and the C4 holdout}
+
+\subsection*{Supplementary Note S3: sparsification strategies as implemented}
+
+\texttt{impg align -{}-sparsify} chooses which pairs of genomes to align, and its default \texttt{none} keeps all pairs.
+% src: impg align --help (--sparsify, default none); sweepga@4713ce0 src/cli.rs:313-319
+The rules live in sweepga \citep{Garrison2026sweepga} at commit 4713ce0, and the library default of impg, \texttt{giant:0.99}, does not reach the command line.
+% src: Cargo.toml:71; src/commands/align.rs:53-57 (AlignConfig::default); src/main.rs:9518 (CLI value)
+For PanSN input the unit is the haplotype, and $n$ counts haplotypes.
+% src: sweepga@4713ce0 src/knn_graph.rs:636-679
+A selected haplotype pair expands to all contig pairs across it, and contig pairs within one haplotype are always kept.
+% src: sweepga@4713ce0 src/knn_graph.rs:584-615
+Distances are Mash distances \citep{Ondov2016mash} between merged haplotype sketches, with k-mer size 15 and sketch size 1,000 by default.
+% src: sweepga@4713ce0 src/knn_graph.rs:561-583, 647-656; impg align --help (--mash-kmer-size 15, --mash-sketch-size 1000)
+
+\begin{itemize}
+\item \texttt{none} keeps all $n(n-1)/2$ pairs.
+% src: sweepga@4713ce0 src/knn_graph.rs:505-513
+\item \texttt{random:}$f$ keeps a pair when a hash of its two indices is at most $f\,(2^{64}-1)$, with Rust's \texttt{DefaultHasher} and no user seed.
+% src: sweepga@4713ce0 src/knn_graph.rs:60-66, 371-392
+\item \texttt{tree:}$k_n$\texttt{:}$k_f$\texttt{:}$r$ links each unit to its $k_n$ nearest and $k_f$ farthest units and adds random pairs at fraction $r$.
+% src: sweepga@4713ce0 src/knn_graph.rs:94-133, 243-282, 343-368
+\item \texttt{giant:}$p$ sets $f=\min\{1,\lceil n\ln n\,(-\ln p)/2\rceil/\binom{n}{2}\}$ and $k=\max\{2,\lceil fn\rceil\}$, then applies \texttt{tree:}$k$\texttt{:1:0.01}.
+% src: sweepga@4713ce0 src/knn_graph.rs:534-544 (sketch path that impg align uses), 455-472
+At $p=0.99$, $k=2$ for $n$ = 7, 235, 466, 1,000 and 10,000.
+% src: python3 arithmetic in this step (target edges 1, 7, 15, 35 and 463); VERIFY_CORRECTIONS.md (partition-regional verifier notes)
+The rule does not sample an Erd\H{o}s-R\'enyi graph \citep{Erdos1959random}, and no code checks that the pairs connect all units.
+% src: sweepga@4713ce0 src/knn_graph.rs:534-544; sweepga@4713ce0 src/lib.rs:2-28 does not declare giant_component.rs, so that module is not compiled
+\item \texttt{auto} keeps all pairs for $n\le 10$ and applies \texttt{giant:0.99} for $11\le n\le 50$ and \texttt{tree:5:2:0.05} for $n>50$.
+% src: sweepga@4713ce0 src/knn_graph.rs:514-531
+\item \texttt{wfmash:}$f$ keeps all pairs and passes a mapping density to wfmash \citep{Guarracino2024wfmash}, with $10\ln(n)/n$ for $n$ PanSN haplotypes under \texttt{wfmash:auto}.
+% src: sweepga@4713ce0 src/knn_graph.rs:205-216, 549-557, src/orchestrator.rs:10-21; src/commands/align.rs:421, 478-481; src/commands/mod.rs:102-105 (num_genomes counts haplotypes); src/main.rs:10435-10440 (rejected with other aligners)
+\end{itemize}
+
+impg aligns every pair of input files that holds a selected pair, and only wfmash also receives the sequence pairs.
+% src: src/commands/align.rs:434-440 (collect_file_pairs), 483-500 (pairs file only for wfmash)
+With FastGA, the pair set takes full effect only when each haplotype has its own FASTA file, and no effect with one FASTA file.
+% src: src/commands/align.rs:377-396 (collect_file_pairs), 485 (pairs file only for wfmash), 524-530 (one input file is self-aligned whole); sweepga@4713ce0 src/knn_graph.rs:636-657 (haplotype unit); VERIFY_CORRECTIONS.md (partition-regional)
+impg tests the parser of these rules and the rejection of \texttt{wfmash:auto} with another aligner, and no impg test runs a sparsified pair set.
+% src: src/commands/align.rs:878-898; tests/test_aligner_validation.rs:22-31; sweepga@4713ce0 src/knn_graph.rs:680-1000 (sweepga's own unit tests)
+
+\subsection*{Supplementary Note S4: partition termination}
+
+We consider \texttt{partition} on the alignment backend with breadth-first search, and line numbers refer to src/commands/partition.rs.
+Rounds repeat while windows remain (line 297), and each round processes its windows and then selects new ones among unowned bases (lines 297-618).
+
+\textbf{Claim.}
+For any window size $w\ge 1$ and depth $m$, the loop ends after at most $1+\sum_i|s_i|$ rounds.
+
+\emph{Proof.}
+Both window loops set the window end to $\min(pos+w,\,end)$ and move $pos$ there (lines 229-246, 954-968).
+For $w\ge 1$ each step advances $pos$ by at least 1, so each loop ends.
+Each closure ends after $m$ depths, or by the termination argument of Note S2 when $m=0$.
+Every window joins its own closure output (lines 421, 981-997).
+\texttt{mask\_and\_update\_regions} masks that output and removes it from the missing set (lines 1308-1313, 1315-1376).
+Windows come only from sequences with missing bases (lines 764-944), and a sequence leaves the missing set once it has none (lines 1373-1375).
+So a round with a window removes at least one missing base, and a round without one ends the loop (lines 946-948).
+$\square$
+
+\textbf{Window size 0.}
+With $w=0$ the window end equals $pos$, and the tail test $0<0$ fails (lines 232-246, 957-967).
+The loop appends the empty window $(pos,pos)$, never advances, and grows the window list until memory runs out (derived, not run).
+The command accepts \texttt{-w 0}, because the only window-size check in src/main.rs belongs to \texttt{impg infer} (src/main.rs:4771-4774, 8644-8649).
+Code fix C11 of the plan adds the check, and values above 2,147,483,647 are cast to 32 bits without a check (lines 232, 957).
+% src: plan.md section 9 (C11)
+Termination says nothing of whether every base ends in exactly one partition.
+\pending{E9}{partitions counted from the BED files, uncovered bp and bp owned by more than one partition on ScRAP 142}

@@ -1,0 +1,81 @@
+\section{Introduction}
+\label{sec:introduction}
+
+A pangenome graph represents a collection of genomes and their mutual homology in one structure~\citep{CPGC2018pangenomics,Paten2017graphs,Eizenga2020pangenome}.
+% src: CPGC2018pangenomics, Paten2017graphs, Eizenga2020pangenome (reviews; supporting/citation-keys.md rows 94-96)
+Builders such as PGGB, Minigraph-Cactus and minigraph construct whole-chromosome or whole-genome graphs before any locus can be studied~\citep{Garrison2024pggb,Hickey2024minigraphcactus,Li2020minigraph}.
+% src: Garrison2024pggb; Hickey2024minigraphcactus; Li2020minigraph; scratchpad phase1/related-work.md:35-36
+PGGB built a graph of 90 human chromosome 6 haplotypes (15,508,376,475 bp) in 18.46 h with 137.72 GB of memory on 48 threads~\citep{Garrison2024pggb}.
+% src: Garrison2024pggb Table 1, row hsapiens90.chr6, 48 threads (scratchpad phase1/pggb-nature-methods.md:82, 90)
+In a separate test, seqwish, the PGGB induction step, took 46,268 s and 347.4983 GB of memory on 38 human haplotypes (114.627 Gbp)~\citep{Garrison2023seqwish}.
+% src: Garrison2023seqwish Table 1, row H.sapiens (scratchpad phase1/ft/PMC9805579.txt:108)
+odgi and vg then extract loci from the built graph~\citep{Guarracino2022odgi,Garrison2018vg}.
+% src: Guarracino2022odgi (odgi extract and vg chunk take a built graph as input)
+Extracting the chromosome 6 centromere from a 64-haplotype graph at 16 threads took 46.87 s and 7.23 GB with odgi~\citep{Guarracino2022odgi}.
+% src: references/odgi-paper/manuscript/table_extract.tex:4 (caption, centromeric region of a human chromosome 6 graph, mean of 10 runs) and :42 (16 threads, 64 haplotypes)
+vg chunk took 1,838.51 s and 60.37 GB for the same task~\citep{Guarracino2022odgi}.
+% src: references/odgi-paper/manuscript/table_extract.tex:42 (16 threads, 64 haplotypes, mean of 10 runs)
+
+The homology in a PGGB graph comes from the pairwise alignments that seqwish induces it from~\citep{Garrison2023seqwish,Garrison2024pggb}.
+% src: Garrison2023seqwish (graph induction from alignments); scratchpad phase1/web/hpp_readme.md:151 ("constructs a graph from an all-vs-all alignment")
+smoothxg then re-aligns local blocks of the induced graph by partial order alignment~\citep{Garrison2024pggb}.
+% src: scratchpad phase1/pggb-nature-methods.md:64 (SMOOTHXG, POA over blocks, Extended Data Figs. 1-3); hpp_readme.md:24 ("base-level (via seqwish/POA)")
+Release 2 of the Human Pangenome Reference Consortium (HPRC r2) offers graphs from three strategies, Minigraph, Minigraph-Cactus and IMPG/PGGB~\citep{HPRC2026resources,Lucas2026hprc2}.
+% src: hpp_readme.md:17-28 (Graph Creation Strategies table)
+For IMPG/PGGB, the release also ships the alignment behind the PGGB graph ``through IMPG (implicit pangenome)''~\citep{HPRC2026resources}.
+% src: hpp_readme.md:151 ("that same all-vs-all alignment is also provided through IMPG (implicit pangenome)")
+The alignments come as PAF files and as 466 per-haplotype files in the TPA tracepoint format~\citep{Guarracino2026tpa,Kaushan2026tracepoints}.
+% src: hpp_readme.md:183 ("in PAF format and in IMPG's TPA format (one file per haplotype, 466 total)"); hpp_readme.md:187-191 (all-vs-all, GRCh38, CHM13 and per-target PAF rows)
+These files hold 389,234,668 alignment records over 464 assembly haplotypes, GRCh38 and CHM13~\citep{Schneider2017grch38,Nurk2022chm13}.
+% src: sum of column 2 of drafts/bioinformatics-2026-11/data/partners.tsv (466 rows); composition in supporting/plan.md section 4 (judge-feasibility.md section 1)
+\authornote{the TPA set includes both HG00272 haplotypes (1,152,010 and 785,824 records), but the HPRC README says HG00272 was held out of graph construction. Confirm whether the PGGB graph contains HG00272 before calling the TPA files the alignment behind the PGGB graph (sections/00.abstract.tex line 6, 01.introduction.tex line 25, 04.release.tex line 4 and Table 1, 05.results.tex lines 17 and 61)}
+% src: hpp_readme.md:35 ("HG00272 was held out"); data/partners.tsv rows HG00272_hap1_hprc_r2_v1.0.1 and HG00272_hap2_hprc_r2_v1.0.1
+\authornote{state who produced the HPRC r2 IMPG files and the authors' role in that work (plan question Q4), because the README does not say}
+
+HPRC r2 also provides the PGGB graph as GBZ files and a gbz-base database for random access~\citep{Siren2022gbz,Siren2026gbzbase}.
+% src: hpp_readme.md:155-163 (GBZ v1, GBZ v3, gbz-base .gbz.db "giving efficient random access to the graph without loading it into memory")
+Liftover tools such as liftOver, CrossMap and levioSAM2 project intervals or reads through chains, and one chain links one pair of assemblies~\citep{Kent2003chain,Kuhn2013ucsc,Zhao2014crossmap,Chen2024leviosam2}.
+% src: scratchpad phase1/related-work.md:74-78 (one chain per assembly pair; levioSAM2 lifts read alignments through a chain)
+halLiftover projects between any genomes of a HAL file, which holds a multiple alignment such as Progressive Cactus output~\citep{Hickey2013hal,Armstrong2020cactus}.
+% src: Hickey2013hal abstract (PubMed 23505295: HAL graphs created through a C++ API, tools import and export data, liftover); scratchpad phase1/related-work.md:76 (HAL indexed on all genomes it contains; its "needs a Cactus MSA" is wrong)
+PGR-TK fetches a region by sequence similarity and builds a local graph, and its authors applied it to 94 HPRC year-1 haplotypes~\citep{Chin2023pgrtk}.
+% src: scratchpad phase1/ft/PMC10406601.txt:9 (94 diverse haplotypes), :14 (fetch by query sequence, graph generation)
+Shredtools needs no pairwise alignment and returns, for each genome, the sequence between the collinear multi-MUMs that flank the query~\citep{Shivakumar2026shredtools,Shivakumar2025mumemto}.
+% src: references/biorxiv-2026-07-03-736354/paper.txt:278-283; p.13 txt:602-608 (scratchpad phase1_research_digest.txt, COMPETITOR FACTS)
+Its authors tested impg v0.4.0 on 92 HPRC year-1 chromosome 19 assemblies~\citep{Shivakumar2026shredtools,Liao2023hprc}.
+% src: paper.txt:283-285 ("92 chr19 assemblies from HPRCr1"); paper.txt:837-839 (ref [6], impg v0.4.0)
+They wrote that impg involves all-pairs whole-genome alignments~\citep{Shivakumar2026shredtools}.
+% src: paper.txt:285
+As such, they were ``unable to compute a comparable index over whole assemblies in HPRCr1 or the larger HPRCr2 collection (N=476)''~\citep{Shivakumar2026shredtools}.
+% src: paper.txt:285-287
+They also noted that impg runs in practice on sparse pair sets, and tested 6\% and 17\% of pairs~\citep{Shivakumar2026shredtools}.
+% src: paper.txt:301-302 ("impg operates over a sparse sampling of the pairwise comparison space", 6%); paper.txt:310-312 (17%)
+In their chr19 test, the Shredtools index took 252.4 MB on disk, against 10.1 GB for impg with its PAF alignments~\citep{Shivakumar2026shredtools}.
+% src: paper.txt:305-306 ("252.4 MB on disk. The corresponding impg index (including all PAF alignments + index) took 10.1 GB")
+Shredtools also answers queries in a web browser through HTTP Range requests to a public index~\citep{Shivakumar2026shredtools}.
+% src: paper.txt:24-26, 476, 501-502
+In the PGGB peer review, the authors left combined spanning-tree and random sparsification to future work, possibly on implicit pangenome graphs~\citep{Garrison2024pggb}.
+% src: PGGB peer review file, scratchpad phase1/dl_pggb/MOESM3.txt:973-982 ("We anticipate exploring combinations of these two approaches ... possibly focused on implicit pangenome graphs")
+
+nf-core/pangenome proposed IMPG to split whole-genome alignments into loci~\citep{Heumos2024nfcore}.
+% src: scratchpad phase1/ft/PMC11568064.txt, Discussion ("The IMplicit Pangenome Graph (IMPG) ... tool extracts homologous loci")
+\citet{Yoo2025apes} described an earlier impg in their Supplementary Note III and used it on all-to-all ape alignments.
+% src: scratchpad phase2/yoo/MOESM1.txt:648-670, 717, 739-740 (subsection "Implicit pangenome graph (impg)" and its commands)
+Neither text defines the model formally or measures its accuracy.
+% src: supporting/opportunities.md:97, 338-339 (no measurement in that subsection); the PMC11568064 mention is one Discussion paragraph
+COSIGT uses \texttt{impg query} and \texttt{impg refine} to extract loci before genotyping~\citep{Bolognini2026cosigt}.
+% src: scratchpad phase1/ft/cosigt.txt:45-49 (impg refine sets locus boundaries, impg query projects them onto all haplotypes); supporting/plan.md section 5.1
+
+Here we describe impg, which indexes the pairwise alignments of a genome collection and queries them as an implicit pangenome graph~\citep{Guarracino2026impg}.
+% src: Guarracino2026impg; /home/guarracino/git/impg README.md:9-11 (implicit pangenome graph), README.md:30-33 (coitrees index)
+Our contributions are the following.
+\begin{itemize}
+\item A formal model with projection, a depth-bounded transitive closure and conditions under which a local graph equals part of the implied graph.
+% src: supporting/opportunities.md sections 1.1-1.6 (Propositions 1 and 2); supporting/plan.md section 5.2
+\item An on-disk index over PAF, TPA and 1ALN files that loads only the trees a query touches, with sequences from FASTA or AGC~\citep{Deorowicz2023agc}.
+% src: src/impg.rs:1758-1954 (IMPGIDX2 layout, per-target blobs), src/alignment_record.rs:67-79 (formats), tests/test_agc_integration.rs
+\item An audit of the HPRC r2 IMPG release, where 23,738 of the 108,345 possible pairs among the 466 assemblies are aligned.
+% src: drafts/bioinformatics-2026-11/data/pairs_out.txt line 3 ("unordered pairs 23738 of 108345 = 21.9096%")
+\item An evaluation of index and query cost and held-out recall on the whole release, and of gene-level accuracy against Shredtools on HPRC year-1 chromosome 19.
+% src: supporting/plan.md section 7, experiments E2 and E3b (whole-release index), E3a (GRCh38 star and CHM13 file), E5 (HPRC year-1 chr19, 90 haplotypes); numbers reported in the Results as \pending
+\end{itemize}

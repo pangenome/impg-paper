@@ -1,0 +1,24 @@
+\section{Availability}
+\label{sec:availability}
+
+impg is free software under the MIT license, written in Rust, at \url{https://github.com/pangenome/impg}.
+% src: /home/guarracino/git/impg LICENSE (MIT text), README.md:674-676 ("MIT."), Cargo.toml:2-3, git remote origin
+This paper describes release \pending{C1}{release tag}, archived at Zenodo as \pending{C1}{version DOI}~\citep{Guarracino2026impg}.
+% src: supporting/citation-keys.md row Guarracino2026impg (concept DOI 10.5281/zenodo.20605843; HEAD 0987752 is v0.5.0-656-g0987752); supporting/plan.md code fix C1
+Bioconda distributes impg, and its latest package on 2026-11-09 was version 0.5.0.
+% src: /home/guarracino/git/impg README.md:3, 38-39; https://api.anaconda.org/package/bioconda/impg (latest_version 0.5.0, license MIT), queried 2026-11-09
+A container image built from the release tag is \pending{C1}{image name and digest}.
+% src: /home/guarracino/git/impg Dockerfile:38 clones the default branch, not a tag; README.md:56-59 (docker pull pangenome/impg)
+The paper repository at \url{https://github.com/pangenome/impg-paper} holds \pending{C14}{one script per figure and table, with commands, tool versions and binary hashes, and their paths}.
+% src: git remote origin of /home/guarracino/git/impg-paper; supporting/plan.md code fix C14 and Table S9 (drafts/bioinformatics-2026-11/scripts holds only fig2_release.py on 2026-11-09)
+The HPRC r2 alignments and graphs are public under \url{s3://human-pangenomics/pangenomes/freeze/release2/}~\citep{HPRC2026resources}.
+% src: scratchpad phase1/web/hpp_readme.md:163-191 (impg/pafs, impg/tpas and pggb/gfas links under pangenomes/freeze/release2/)
+
+\section*{Funding}
+\authornote{funding sources and grant numbers for each author}
+
+\section*{Conflict of interest}
+\authornote{competing-interest statement. main.tex lists Illumina Inc. as an affiliation of B.K. Also state the authors' role in producing the HPRC r2 IMPG files (plan question Q4)}
+
+\section*{Acknowledgements}
+\authornote{people and groups to thank, for example the HPRC production and pangenome working groups and anyone who answers plan questions Q1 to Q5}

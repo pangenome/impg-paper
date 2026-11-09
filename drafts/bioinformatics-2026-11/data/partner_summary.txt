@@ -1,0 +1,4 @@
+files 466 refs {'GCA_000001405.15_GRCh38_no_alt_analysis_set.PanSN': 465, 'chm13v2.0_maskedY_rCRS.fa.PanSN': 465}
+nonref partners min 35 p10 44 p50 52 p90 61 max 74 mean 52.3513
+ordered target-query haplotype pairs 25221 of 216690 = 11.6392%
+nonref pairs 24291 of 215760 = 11.2583%

@@ -1,0 +1,325 @@
+\section{Results}
+\label{sec:results}
+
+Each subsection states a question, its design and slots for its results.
+All runs use one tagged impg build, and we store its sha256 digest, version and commit next to each result \authornote{tag name, Zenodo version DOI and owner of the frozen build, decision D6 and code fix C1}.
+% src: supporting/plan.md section 7 (rules for every run) and section 9 C1
+Every benchmark names its index with \texttt{-i}, which forces a single index.
+% src: impg src/main.rs:11277-11291 (IndexMode::Auto returns single when an index path is given)
+Without \texttt{-i}, impg switches to one index per file at 100 or more files, and no test covers that mode.
+% src: impg src/main.rs:11281-11287; supporting/plan.md section 9 C6 (src/multi_impg.rs:757-952, 0 tests)
+A fixed-seed sampler draws every region set, and held-out sets never choose parameters (Supplementary Note S5 and Table~\ref{tab:commands}).
+% src: supporting/plan.md section 7 (rules for every run)
+
+\subsection{Tracepoint projection and CIGAR projection}
+\label{sec:res-tpa}
+
+HPRC release 2 distributes the PGGB alignments as 466 TPA files, one per haplotype \citep{HPRC2026resources,Guarracino2026tpa}.
+% src: HPRC2026resources, README lines 151 and 183 (phase1/web/hpp_readme.md:151, 183)
+For tracepoint input, impg rebuilds the CIGAR of the segments that overlap a query from the sequences with WFA2 \citep{Kaushan2026tracepoints,MarcoSola2021wfa}.
+% src: impg src/impg.rs:1206-1362
+No test compares this path with PAF input, and impg drops a hit it cannot rebuild with only a debug message.
+% src: supporting/plan.md section 9 C2; impg src/impg.rs:1230-1236, 1247-1254, 1330-1338, 1436-1442, 1453-1460
+We ask whether exact tracepoint projection returns the same rows as CIGAR projection of the same alignments.
+We use the GRCh38 target file, 8,916,633 records, as TPA (560,062,985 bytes) and as gzipped PAF (6,532,446,867 bytes).
+% src: S3 listings of release2/impg/tpas and release2/impg/pafs/all-vs-1 (phase2/s3/tpas.tsv, phase2/s3/pafs.tsv); supporting/plan.md sections 4 and 5.4 (record counts equal); data/partners.tsv line 1
+We project 1,000 random 10 kb GRCh38 regions, plus 200 held out, at depth 1, 2 and unbounded, without merging.
+% src: supporting/plan.md section 7 E1
+We count identical sorted BEDPE rows, rows found in one output only, the largest boundary shift and dropped tracepoint hits.
+% src: supporting/plan.md section 7 E1
+We also run \texttt{-{}-approximate}, which serves only BED and BEDPE output, without tuning it.
+% src: impg query --help (--approximate)
+A second test indexes two assembly files that list each other, with and without \texttt{-{}-unidirectional}, because both files store their alignments.
+% src: data/pairs_out.txt (2,966 ordered pairs stored in both files); impg src/impg.rs:1686-1712 (each non-self record is also inserted reversed); supporting/plan.md section 7 E1b
+Exact tracepoint and PAF projection gave \pending{E1}{identical sorted rows, \%, per depth and set}.
+The tracepoint path dropped \pending{E1}{tracepoint hits, count}.
+Approximate mode shifted boundaries by \pending{E1}{median and maximum shift, bp} at \pending{E1}{median s per query, both modes}.
+The reciprocal pair gave \pending{E1}{index entries per record, merged BED identity}.
+Every tracepoint result below depends on this test (Supplementary Fig.~S2).
+
+\subsection{Indexing and querying the whole release}
+\label{sec:res-release}
+
+The Shredtools authors wrote that they could not compute a comparable impg index over whole HPRCr1 assemblies or the HPRCr2 collection of N = 476 \citep{Shivakumar2026shredtools}.
+% src: Shivakumar2026shredtools, references/biorxiv-2026-07-03-736354/paper.txt:285-287
+The same preprint states that impg in practice runs on a sparse sample of pairs, and it benchmarked 6\% and 17\% pair sets.
+% src: Shivakumar2026shredtools, paper.txt:301-312
+We ask whether the 389,234,668 released alignments index on one node, and what a regional query then costs.
+% src: data/partners.tsv column 2 summed over 466 files
+The 466 TPA files take 25,070,431,026 bytes, and the AGC sequence archive takes 3,295,070,733 bytes \citep{Deorowicz2023agc}.
+% src: phase2/s3/tpas.tsv (sum); supporting/plan.md section 4 (local ls of HPRC_r2_assemblies_0.6.1.agc)
+By the field sizes in the code, a single-index build holds at least 59,163,669,536 bytes in memory at once.
+% src: impg src/main.rs:11621-11760 and src/impg.rs:1657-1735; supporting/plan.md section 4 (389,234,668 x 56 + 778,469,336 x 48)
+We therefore build on one cluster node \authornote{node name, CPU model, RAM and scratch bytes, decision D5}.
+We sample 1,000 regions each of 1 kb, 10 kb, 100 kb and 1 Mb on non-reference haplotypes, plus 200 held out per size.
+% src: supporting/plan.md section 7 E2 (seed 2)
+Each region runs as its own impg process on one thread, five times with a warm page cache, at depth 1 and 2.
+% src: supporting/plan.md section 7 E2
+Each run uses exact and approximate mode under \texttt{/usr/bin/time -v}.
+A batch run of the 10 kb set at 1, 4, 16 and 48 threads measures throughput and output identity.
+One query covers all of CHM13 chromosome 1.
+vg chunk from vg v1.76.1 extracts each region from the GBZ version 3 file of the PGGB graph built from the same alignments \citep{Garrison2018vg,Siren2022gbz,Garrison2024pggb} \authornote{check that vg v1.76.1 reads GBZ version 3, which the release README says needs ``a recent release of vg'' without naming a version}.
+% src: HPRC2026resources README line 151 (same all-vs-all alignment), line 159 (v3.gbz requires a recent release of vg); phase2/s3/pggb_wg.tsv (v3.gbz 6,398,170,680 bytes); vg version on the workstation; supporting/plan.md section 14 (v3 GBZ read by vg v1.76.1 not run)
+Shredtools extract reads its public HPRC release 2 index, hprcv2\_merged.bumbl, which takes 27,478,774,573 bytes with its \texttt{.bi} file \citep{Shivakumar2026shredtools,Shivakumar2025mumemto}.
+% src: phase2/judge-feasibility.md section 1 (aws s3 ls s3://genome-idx/mumemto/hprc/: hprcv2_merged.bumbl 27,424,443,909 + .bumbl.bi 54,330,664 bytes)
+All three tools query the same 1,000 GRCh38 regions of 10 kb.
+% src: supporting/plan.md section 7 E2
+impg and Shredtools return intervals, and vg chunk returns a subgraph, so this comparison measures cost, not output.
+Shredtools also answers queries from a web browser through HTTP Range requests on its cloud-hosted index, and impg has no remote access.
+% src: paper.txt:25-26, 476, 501, 572 (HTTP Range requests), 640-641 (browser tool); supporting/plan.md section 10 (remote HTTP access not implemented)
+impg pays no alignment cost here, because the PGGB build produced the alignments, and the release does not state that cost.
+% src: HPRC2026resources README line 151; supporting/plan.md section 12 Q3
+The build gave \pending{E2}{outcome, wall and CPU h, peak RSS GB, index bytes} (Fig.~\ref{fig:cost}a).
+Per-query cost was \pending{E2}{median and p95 s, peak RSS GB, per size, depth and mode} (Fig.~\ref{fig:cost}b).
+On the shared GRCh38 regions, vg chunk took \pending{E2}{median and p95 s, peak RSS GB}.
+Shredtools took \pending{E2}{median and p95 s, peak RSS GB} on the same regions.
+The whole-chromosome query took \pending{E2}{s and peak RSS GB, or the limit reached}.
+Batch output across thread counts was \pending{E2}{identical or not, differing rows} (Fig.~\ref{fig:cost}d).
+We make no storage claim.
+Exact tracepoint queries need the AGC archive, and GBZ stores the sequences itself.
+% src: impg 0987752 src/main.rs:4186-4215 (tracepoint files need --sequence-files unless --approximate with bed or bedpe)
+The TPA set and the AGC archive take 28,365,501,759 bytes, 4.433 times the 6,398,170,680 bytes of GBZ version 3, before any impg index (Fig.~\ref{fig:cost}c).
+% src: 25,070,431,026 + 3,295,070,733 = 28,365,501,759; 28,365,501,759 / 6,398,170,680 = 4.433 (phase2/s3/tpas.tsv, phase2/s3/pggb_wg.tsv, supporting/plan.md section 4)
+As a consistency check, we compare impg intervals at depth 2 with vg chunk path intervals on 1,000 GRCh38 and 1,000 non-reference regions.
+% src: supporting/plan.md section 7 E8 (seed 10)
+The PGGB graph drops exact matches shorter than 311 bp, so this check measures consistency, not truth \citep{Garrison2023seqwish,Garrison2024pggb}.
+% src: HPRC2026resources README line 155 (pggb -p 98 -k 311)
+Per-region base-pair Jaccard was \pending{E8}{median and IQR, segmental duplication, satellite and other strata} (Supplementary Fig.~S3).
+
+\begin{figure}[!tpb]
+\centering
+\fbox{\parbox{0.95\linewidth}{\small Planned panels.
+(a) Index build cost of the 466 TPA files.
+(b) Per-query wall time and peak memory by region size for impg, vg chunk and Shredtools.
+(c) Bytes on disk of released and derived files.
+(d) Batch wall time and output identity by thread count.}}
+\caption[Cost on the whole release]{\textbf{Cost on the whole release.}
+(a) Index build of the 466 HPRC release 2 TPA files in single-index mode.
+Bars give wall time (h), CPU time (h), peak resident memory (GB) and index size (bytes), each axis from 0.
+Data from E2, \texttt{/usr/bin/time -v} on the node of Supplementary Note S5.
+(b) Per-query wall time (s, y axis from 0) against region size (x axis, 1 kb, 10 kb, 100 kb and 1 Mb).
+Points are medians and bars are 95th percentiles of 1,000 regions times 5 replicates.
+Series are impg exact and approximate at depth 1 and 2, vg chunk on GBZ version 3, and Shredtools extract on hprcv2\_merged.bumbl.
+The vg and Shredtools series use the 1,000 GRCh38 regions of 10 kb.
+A second row gives peak resident memory (GB, y axis from 0).
+Data from E2.
+(c) Bytes on disk (y axis from 0) of eight files or sets.
+These are the per-target PAF.gz set, the TPA set, the AGC archive (3,295,070,733 bytes), the impg index, GBZ versions 1 and 3, the gbz-base database and the Shredtools index.
+Data from the S3 listings of 2026-11-08 and, for the impg index, from E2.
+(d) Batch wall time (s, y axis from 0) against threads (x axis, 1, 4, 16 and 48) for 1,000 non-reference 10 kb regions.
+Marks flag thread counts whose output differs from the 1-thread output.
+Data from E2.}
+\label{fig:cost}
+\end{figure}
+
+\subsection{Reach and reference dependence}
+\label{sec:res-reach}
+
+Every assembly in the release aligns to GRCh38 and CHM13, whose two files list all 465 other haplotypes \citep{Schneider2017grch38,Nurk2022chm13}.
+% src: data/partner_summary.txt (refs 465 each); data/pairs_out.txt
+Between non-reference haplotypes, the index walks 22,809 of 107,416 unordered pairs (21.2343\%).
+% src: data/pairs_out.txt
+At the level of pairs, every non-reference haplotype reaches all 463 others within two hops without either reference (Fig.~\ref{fig:release}c).
+% src: data/pairs_out.txt (2 hops min 463 median 463); sections/04.release.tex fig:release panel c
+Pair-level reach does not measure bases, so we ask how many bases a query reaches without the two references.
+We also ask how well transitive projection recovers a held-out direct alignment.
+In the first test we project 1,000 random 1 kb GRCh38 regions to CHM13, plus 200 held out.
+% src: supporting/plan.md section 7 E3a (seed 3)
+One index holds the GRCh38 and CHM13 target files, and a second index holds them without the direct GRCh38 and CHM13 records.
+% src: supporting/plan.md section 7 E3a
+The second index reaches CHM13 only through other haplotypes, at depth 2 and 3.
+We score it against the direct projection and against a public GRCh38-to-CHM13 chain file \citep{Kent2003chain} \authornote{choose the chain file and record its provenance}.
+In the second test we choose 10 non-reference haplotypes, each with one partner whose alignments only the haplotype's own file stores.
+% src: supporting/plan.md section 7 E3b (seed 4); data/pairs_out.txt (2,966 of 25,221 ordered pairs are stored in both files)
+We replace each such file by its per-target PAF without the partner's records, so no direct alignment links the two.
+% src: supporting/plan.md section 7 E3b
+We query 100 random 10 kb regions per haplotype, 20 of them held out, at depth 1, 2, 3, 4 and unbounded.
+% src: supporting/plan.md section 7 E3b
+Each depth runs with the references and without them, through a subset list that removes GRCh38 and CHM13 as outputs and as bridges.
+% src: impg src/impg.rs:2496-2505 (subset filter applied before a projection joins the next frontier); VERIFY_CORRECTIONS.md:18
+The truth is the direct projection of the same regions on the full index.
+At depth 1 no direct alignment remains, so this depth serves as a control.
+Metrics are bp recall, bp precision, the exact-boundary rate at 0, 1, 10 and 100 bp, and bases reached per depth.
+% src: supporting/plan.md section 7 E3
+Strand agreement waits for the strand decision, because impg sets BED strand per hop and does not compose it back to the query.
+% src: impg src/impg.rs:282-286 and src/main.rs:12072-12079; supporting/plan.md sections 9 C7 and 13 D3
+GRCh38 to CHM13 projection through haplotypes gave \pending{E3}{bp recall and precision against direct projection and against the chain, depth 2 and 3}.
+Held-out partner recall was \pending{E3}{median per-region bp recall with and without references, per depth} (Fig.~\ref{fig:recall}c).
+Bases reached were \pending{E3}{bp per depth, with and without references} \authornote{Fig.~\ref{fig:release} has panels a to c only. Choose the panel that shows bases reached per depth}.
+We report unbounded runs that do not finish with their limit.
+
+\subsection{Sparse alignment sets and transitive error}
+\label{sec:res-sparse}
+
+The number of genome pairs grows as $n(n-1)/2$, so 90 haplotypes give 4,005 pairs and 142 strains give 10,011.
+We ask how much homology transitive projection recovers, by depth, as the fraction of aligned pairs falls.
+The tuning set is the all-pairs chr19 alignment of 90 HPRC year-1 haplotypes from Section~\ref{sec:res-genes} \citep{Liao2023hprc}.
+% src: supporting/plan.md section 7 E4 and E5
+The holdout is the ScRAP set of 142 \textit{Saccharomyces cerevisiae} assemblies, which never sets a parameter \citep{ODonnell2023scrap}.
+% src: supporting/plan.md section 7 E4; ODonnell2023scrap
+We align all pairs with wfmash through \texttt{impg align} and keep its default filters \citep{Guarracino2024wfmash,Garrison2026sweepga}.
+% src: impg align --help (--sparsify none default, plane-sweep and scaffold filters on by default)
+From each all-pairs set we draw four subsets of pairs.
+Two are random 6\% and 17\% subsets, the two pair fractions of the Shredtools benchmark \citep{Shivakumar2026shredtools}.
+% src: paper.txt:301-303 (6% of pairwise alignments), 310-311 (17%, the default auto setting); the preprint gives no selection rule for either set
+The third holds the pairs that \texttt{-{}-sparsify auto} selects, and the fourth is a star to one genome fixed in advance.
+% src: supporting/plan.md section 7 E4; section 13 D8 (hub strain)
+Above 50 haplotypes, \texttt{auto} keeps the 5 nearest and 2 farthest Mash neighbours of each haplotype plus a 0.05 random fraction of pairs \citep{Ondov2016mash}.
+% src: sweepga 4713ce0 src/knn_graph.rs:514-532 (auto rule) and 243-280 (tree pairs)
+impg groups FASTA records by PanSN haplotype before this step, and it always aligns contigs within one haplotype.
+% src: impg src/commands/align.rs:147-179; sweepga 4713ce0 src/knn_graph.rs:589-618 (within-haplotype pairs always added), 636-677 (haplotype-level selection)
+We draw the random subsets in the harness with a fixed seed, because \texttt{random:<f>} keeps each pair by a hash threshold.
+% src: sweepga 4713ce0 src/knn_graph.rs:371-392
+We record whether the \texttt{auto} pair count at commit 0987752 matches the 17\% that Shredtools called the default auto setting of impg v0.4.0.
+% src: paper.txt:310-311 (default auto setting), 838-839 (impg v0.4.0); sweepga 4713ce0 src/knn_graph.rs:514-532, pinned in Cargo.lock at 0987752
+The truth is direct projection on the all-pairs index.
+We project 1,000 random 10 kb regions per set at depth 1, 2, 3, 4 and unbounded on each subset index.
+% src: supporting/plan.md section 7 E4 (seed 5)
+Metrics are bp recall, bp precision, the exact-boundary rate at 0, 10 and 100 bp, and haplotypes reached.
+We also report pairs aligned and alignment CPU time per subset.
+On chr19, recall at depth 2 was \pending{E4}{median per-region bp recall per subset} (Fig.~\ref{fig:recall}a).
+On ScRAP, recall at depth 2 was \pending{E4}{median per-region bp recall per subset}.
+Exact boundaries within 10 bp occurred at \pending{E4}{rate per subset and depth, chr19 and ScRAP}.
+Alignment cost was \pending{E4}{pairs aligned and CPU hours per subset, against all pairs}.
+The \texttt{auto} rule selected \pending{E4}{haplotype pairs and percentage at n = 90 and n = 142}.
+
+\subsection{Gene-level accuracy and Shredtools on the same input}
+\label{sec:res-genes}
+
+We ask how often each tool returns the annotated copy of a gene in each haplotype, and at what cost.
+Shredtools compared with impg on 92 HPRC year-1 chr19 assemblies, and the preprint does not list them \citep{Shivakumar2026shredtools}.
+% src: paper.txt:283-312
+We use the paths of the 90 haplotypes in the HPRC year-1 PGGB chr19 graph, built with \texttt{-n 90} \citep{Liao2023hprc,Garrison2024pggb}.
+% src: phase2/judge-feasibility.md section 1 (freeze1 README); S3 listing of freeze1/pggb/chroms (chr19.hprc-v1.0-pggb.gfa.gz, 345,202,999 bytes)
+The truth is the CAT annotation of GENCODE v38 on HPRC year-1 assemblies, 89 files from its run on CHM13 \citep{Fiddes2018cat,Frankish2021gencode}.
+% src: aws s3 ls of submissions/FC7E9302-5A35-4A4F-9D4A-B3E957118E36--Y1_CAT_ANNOTATION_GENCODE38 on 2026-11-09 (178 files, 89 named *.chm13.gff3.gz)
+Queries are the CHM13 chr19 gene intervals of the same run, scored on haplotypes with both a path and a CAT file.
+CAT projects genes through whole-genome alignments, so this truth is not independent of alignment \citep{Fiddes2018cat}.
+We align all 4,005 haplotype pairs with wfmash through \texttt{impg align}.
+From these we draw random 17\% and 6\% subsets, the \texttt{auto} pairs and a CHM13 star.
+% src: supporting/plan.md section 7 E5
+Shredtools runs with Mumemto v1.4.0 on the same per-haplotype FASTA files \citep{Shivakumar2025mumemto} \authornote{Shredtools commit to pin}.
+% src: paper.txt:637-640 (Mumemto v1.4.0; code at github.com/vikshiv/shredtools)
+We time alignment at 48 threads and single queries at 1 thread.
+We time the index build at 1, 8, 16 and 48 threads.
+We record the peak memory of each stage.
+% src: sections/08b.supplement-experiments.tex Table S1 E5 block (align -t 48, index t in 1 8 16 48, query -t 1); supporting/plan.md section 7 E5; paper.txt:346-349 (48 threads)
+Metrics per gene and haplotype are containment of the CAT interval, flank excess in bp, wrong-locus rate and copies returned.
+We also time 1,000 random 10 kb regions per tool.
+Shredtools reported that its index build was 86 times faster than impg at 48 threads, a rounded factor, and the impg time included wfmash alignment \citep{Shivakumar2026shredtools}.
+% src: paper.txt:299-300 (printed with a tilde); paper.txt:345-348 (Fig. 2 legend: impg index using wfmash)
+It reported 0.484 s on average and 79 MB of peak memory per query, against 4.01 s and 1.66 GB for impg on all pairs.
+% src: paper.txt:308-311; impg version v0.4.0 from its reference list, paper.txt:838-839
+On 17\% of pairs it reported 0.21 s and 12 MB for impg.
+% src: paper.txt:311-312
+These are their numbers for impg v0.4.0, not our results.
+% src: paper.txt:838-839
+Containment was \pending{E5}{median per gene and haplotype, impg per subset and Shredtools} (Fig.~\ref{fig:recall}b).
+The wrong-locus rate was \pending{E5}{fraction of gene and haplotype pairs, per tool}.
+Flank excess was \pending{E5}{median bp per tool}.
+Stage costs were \pending{E5}{wall time in h and peak RSS in GB for alignment, index and query, per tool and thread count}.
+Per-query cost was \pending{E5}{median and p95 wall time in s, peak RSS in MB, per tool}.
+
+\begin{figure}[!tpb]
+\centering
+\fbox{\parbox{0.95\linewidth}{\small Planned panels.
+(a) Recall and exact boundaries against the fraction of aligned pairs.
+(b) Gene-copy accuracy of impg subsets and Shredtools against CAT.
+(c) Held-out partner recall on HPRC release 2 with and without the reference bridges.}}
+\caption[What transitive projection recovers]{\textbf{What transitive projection recovers.}
+(a) Base-pair recall (y axis, 0 to 1) against the fraction of aligned genome pairs (x axis, 0 to 1).
+Subsets are random 6\%, random 17\%, the \texttt{-{}-sparsify auto} pairs and a star, with one line per depth (1, 2, 3, 4 and unbounded).
+A second row gives the exact-boundary rate within 10 bp (y axis, 0 to 1).
+The left column shows the chr19 tuning set of 90 HPRC year-1 haplotypes, and the right column the ScRAP 142 holdout.
+Data from E4.
+(b) Per gene and haplotype containment of the CAT GENCODE v38 interval (y axis, 0 to 1), flank excess (bp) and wrong-locus rate.
+Series are impg on all pairs, 17\%, 6\%, the \texttt{auto} pairs and a CHM13 star, and Shredtools.
+Data from E5.
+(c) Held-out partner bp recall (y axis, 0 to 1) against depth (x axis, 1 to 4 and unbounded), with and without reference bridges.
+Points are 10 query haplotypes of HPRC release 2 (E3b).
+An inset gives GRCh38 to CHM13 recall through haplotypes against direct projection and the public chain (E3a).}
+\label{fig:recall}
+\end{figure}
+
+\subsection{Local graphs and the restriction of the implied graph}
+\label{sec:res-local}
+
+\texttt{impg query -o gfa} builds a graph from the homologous intervals that a query finds.
+It keeps the merged intervals and re-aligns them with the chosen engine, so its graph is not cut from a global graph.
+% src: impg src/main.rs:12326-12340; src/lib.rs:926-951
+Proposition~\ref{prop:restrict} gives a condition for an exact cut.
+Seqwish on alignments clipped to a closed set gives the global seqwish node classes on that set, if seqwish \texttt{-k} is at most 1 \citep{Garrison2023seqwish}.
+% src: supporting/opportunities.md section 1.6 (Proposition 2)
+We test this on real alignments and measure how far the default closure and the \texttt{-o gfa} path lie from it.
+The tuning set is the yeast chrV fixture of impg, 7 sequences and 4,029,392 bp, with 100 random 10 kb loci.
+% src: impg tests/test_data/yeast.chrV.fa.gz (7 records, 4,029,392 bp; VERIFY_CORRECTIONS.md:100); supporting/plan.md section 7 E6 (seed 7)
+The holdout is the C4 region of GRCh38 chr6 in 20 HPRC release 2 haplotypes.
+% src: supporting/plan.md section 7 E6 (GRCh38#0#chr6:31891045-32123783, seed 8)
+We align all pairs with wfmash and induce the global graph with seqwish v0.7.11-35-gaab5bee at \texttt{-k} 0 and 23.
+% src: seqwish --version and --help on the workstation (-k default 0)
+For each locus, an unbounded closure with minimum hop length 0, snapping 0 and no merging writes the clipped alignments as PAF rows with CIGARs.
+% src: impg src/main.rs:12240-12295 (PAF rows carry cg:Z); supporting/opportunities.md section 1.6
+Seqwish on these rows gives the restricted graph, and we compare node classes base by base on the closure.
+Two more arms use the closure at the command-line defaults and the \texttt{-o gfa} seqwish engine.
+% src: impg query --help (-m 2, --min-transitive-len 101, --min-distance-between-ranges 10)
+The defaults are depth 2, a minimum hop of 101 bp and 10 bp snapping.
+% src: impg query --help; impg src/main.rs:4253-4255
+The metric is the number and fraction of closure bases whose node class differs from the global graph.
+At \texttt{-k} 0 the restricted graph differed on \pending{E6}{bases, count and fraction, yeast loci and C4} (Fig.~\ref{fig:local}a).
+At \texttt{-k} 23, at the defaults and through \texttt{-o gfa}, the counts were \pending{E6}{bases and fraction per arm}.
+Graphs from \texttt{-o gfa} remain graphs built from the homologous intervals, because that path re-aligns them.
+% src: impg src/main.rs:12326-12340
+
+\subsection{Locus refinement}
+\label{sec:res-refine}
+
+\texttt{impg refine} extends a locus to maximize the number of sequences, samples or haplotypes that span both of its ends, and counts sequences by default.
+% src: impg refine --help; impg 0987752 src/main.rs:7932-7934 (pansn_mode defaults to PanSnLevel::Sequence); VERIFY_CORRECTIONS.md:64
+COSIGT uses \texttt{impg query} and \texttt{impg refine} to extract loci before genotyping \citep{Bolognini2026cosigt}.
+% src: Bolognini2026cosigt; supporting/plan.md section 5.1
+Refine has one unit test and no command-line test.
+% src: VERIFY_CORRECTIONS.md:91 (refine 1 unit test); supporting/plan.md section 9 C11
+We run it at TERT and IGKV6-21, the loci of two Shredtools examples \citep{Shivakumar2026shredtools}.
+% src: paper.txt:443-470
+At IGKV6-21, Shredtools first found bounds of 328,599 bp and 74,147 bp across 15 T2T genomes.
+% src: paper.txt:445-448
+It then dropped two genomes from cell lines with VDJ deletions and extracted the gene with 0 bp bounds from the other 13.
+% src: paper.txt:448-454
+At TERT it reported bounds of 25 to 35 kbp on either side before enhance and exact bounds across all 476 genomes after it.
+% src: paper.txt:463-470
+Refine changes the interval, while zoom changes the set of genomes.
+We run refine on the E2 index with haplotype counting, 1,000 bp end spans, 1,000 bp steps and extension up to half the locus.
+% src: impg refine --help (--pansn-mode, --span-bp 1000, --extension-step 1000, --max-extension 0.5)
+We run it on all 466 files and on the T2T haplotypes among them, and Shredtools runs enhance and zoom on its own index.
+% src: supporting/plan.md section 7 E10
+Refine reached \pending{E10}{haplotypes spanning both ends before and after, extension bp per side, wall time in s, per locus} (Fig.~\ref{fig:local}b).
+Zoom kept \pending{E10}{genomes kept and bounds in bp, per locus}.
+
+\begin{figure}[!tpb]
+\centering
+\fbox{\parbox{0.95\linewidth}{\small Planned panels.
+(a) Bases whose node class differs between restricted and global seqwish graphs, per arm.
+(b) Haplotypes spanning both ends against interval length at TERT and IGKV6-21.}}
+\caption[Local graphs and locus boundaries]{\textbf{Local graphs and locus boundaries.}
+(a) Fraction of closure bases whose node class differs between the restricted and the global seqwish graph (y axis from 0).
+The x axis has four arms: seqwish \texttt{-k} 0, seqwish \texttt{-k} 23, the closure at command-line defaults, and the \texttt{-o gfa} seqwish engine.
+Points are the 100 yeast chrV loci and the C4 holdout in 20 haplotypes.
+Data from E6.
+(b) Haplotypes spanning both ends (y axis from 0) against interval length (x axis, bp) at TERT and IGKV6-21.
+Series are impg before and after refine, and Shredtools extract before and after enhance and zoom.
+Data from E10.}
+\label{fig:local}
+\end{figure}
+
+\subsection{Partition work units on yeast}
+\label{sec:res-partition}
+
+\texttt{impg partition} grows partitions from windows of one sequence and masks each assigned base, so later partitions skip it.
+% src: VERIFY_CORRECTIONS.md:93 (cover by masking); impg src/commands/partition.rs:250-256
+We ask whether this covers every base of an alignment-backed pangenome exactly once.
+We partition the ScRAP all-pairs index with 10 kb windows, 1 kb merging and haplotype selection, fixed before the run.
+% src: supporting/plan.md section 7 E9 (-w 10000 -d 1000 --selection-mode haplotype)
+An audit counts partitions in the BED files, because the logged count can exceed them after rehoming.
+% src: impg src/commands/partition.rs:142-156, 676-678, 746-748; VERIFY_CORRECTIONS.md:88
+It also reports uncovered bases, bases owned more than once and partitions that join different S288C chromosomes.
+The partition gave \pending{E9}{partitions, member intervals, uncovered bp, bp owned twice, cross-chromosome partitions, wall time, peak RSS} (Supplementary Fig.~S4).

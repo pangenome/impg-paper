@@ -1,0 +1,123 @@
+% Section 2: Model.
+% Source paths in "% src:" comments.
+%   src/... and tests/... are relative to /home/guarracino/git/impg at HEAD 0987752 (impg 0.5.0).
+%   seqwish@0a7e580 is /home/guarracino/.cargo/git/checkouts/seqwish-be7416204a0fe48d/0a7e580, the crate impg pins (Cargo.lock:2872-2874).
+%   seqwish-cpp is /home/guarracino/git/seqwish/cpp (checkout 97d603f), the C++ seqwish.
+%   plan.md and opportunities.md are in /home/guarracino/git/impg-paper/drafts/bioinformatics-2026-11/supporting/.
+
+\ifdefined\proposition\else\newtheorem{proposition}{Proposition}\fi
+
+\section{Model}
+\label{sec:model}
+
+\textbf{Sequences and alignments.}
+Let $S=\{s_1,\dots,s_n\}$ be the input sequences, named in PanSN form, \texttt{sample\#haplotype\#contig} \citep{Garrison2022pansn}.
+% src: Garrison2022pansn; src/seqidx.rs:22-35 (names stored as opaque strings); src/subset_filter.rs:23-58, 116-135
+An alignment $a=(i,[q_s,q_e),j,[t_s,t_e),\sigma,c)$ maps an interval of the query $s_i$ to an interval of the target $s_j$ on strand $\sigma$.
+% src: src/alignment_record.rs:12-21; src/impg.rs:164-174
+Its CIGAR $c$ uses \texttt{=}, \texttt{X}, \texttt{M}, \texttt{I} and \texttt{D}, and for tracepoint files impg rebuilds it \citep{Kaushan2026tracepoints}.
+% src: src/impg.rs:81-89 (other ops panic), 929-1023, 1031-1204 (rebuild from tracepoints)
+As in seqwish, an aligned (\texttt{=}, \texttt{X} or \texttt{M}) column is a match when its two bases are equal, not \texttt{N}, and at different positions.
+% src: src/impg.rs:115-135 (impg walks =, X and M alike; the match rule is seqwish's); seqwish@0a7e580 src/alignments.rs:133, 202-204; seqwish-cpp src/alignments.cpp:54-83
+Let $\equiv_A$ be the equivalence closure, on oriented positions, of the matches $R(A)$ of an alignment set $A$.
+% src: Garrison2023seqwish (match and transitive closure definitions); opportunities.md section 1.1-1.2
+We call each class of $\equiv_A$ a node class.
+The implied variation graph $G(A)$ has one graph base per pair of reverse-complement node classes and one path per sequence.
+% src: Garrison2023seqwish (induction passage, PMC9805579); opportunities.md sections 1.1-1.2 (every match adds both orientations); seqwish@0a7e580 src/transclosure.rs:597-599 (closure seeded on unoriented offsets)
+seqwish induces $G(A)$ \citep{Garrison2023seqwish}.
+% src: Garrison2023seqwish; seqwish --help (-k default 0)
+PGGB runs seqwish on matches filtered by length (\texttt{-k}), then smooths, normalizes and sorts the graph \citep{Garrison2024pggb}.
+% src: Garrison2024pggb; seqwish@0a7e580 src/alignments.rs:141 (len >= min_match_len while collecting matches); opportunities.md section 1.2
+impg never builds $G(A)$, and we call $A$ with its index (Section \ref{sec:implementation}) an implicit pangenome graph.
+% src: src/main.rs:12324-12340 (no global graph in query); src/impg.rs:1956-2032, 2379-2628
+
+\textbf{Projection.}
+For an interval $J$ on one side of $a$, the projection $\pi_a(J)$ spans the other-side bases of the columns of $a$ in $J$.
+% src: src/impg.rs:2791-2929; 2873-2898 (=, X and M ops)
+It also spans the insertions inside $J$ or touching its ends, and it is empty when $J$ holds no aligned column and touches no insertion.
+% src: src/impg.rs:2829-2836 (loop stops only when target_pos > end of J), 2838-2852 (insertion kept when target_pos >= start of J), 2853-2871 (deletions), 2902-2907 (empty tests); derived by hand, not run (T:462 record: B:0-50 gives A:0-60 and B:50-100 gives A:50-110; CIGAR 10=5I5D10= with J=[10,15) gives query 10-15)
+
+\textbf{Closure.}
+Algorithm \ref{alg:bfs} computes the closure $H_m(I)$ of an interval $I$ by breadth-first search over alignments in both directions.
+% src: src/impg.rs:2379-2628; src/impg.rs:1686-1712 (both directions)
+Visited sets let only the new parts of each projection into the next frontier.
+% src: src/impg.rs:2574-2588
+\texttt{impg query} computes the closure only with \texttt{-x}, and \texttt{impg partition} always computes it.
+% src: src/main.rs:4329-4332 (-x, default false), 11836-11880 (one-hop impg.query without -x); src/commands/partition.rs:371-403
+The depth $m$ (\texttt{-m}, default 2, 0 for no limit) bounds the number of hops.
+% src: src/main.rs:4234-4237; src/impg.rs:2444
+New parts shorter than $\ell$ (\texttt{-{}-min-transitive-len}, default 101 bp) are visited but not expanded.
+% src: src/main.rs:4253-4255; src/impg.rs:2585
+An end of a new part that lies less than $\delta$ bp (\texttt{-{}-min-distance-between-ranges}, default 10 bp) from the nearest end of a visited range snaps onto that end.
+% src: src/main.rs:4247; src/impg.rs:282-303 (strict tests |diff| < min_distance at lines 296 and 301), 2578-2581
+Filters $\phi$ on identity and sequence subset drop a hit from output and frontier.
+% src: src/impg.rs:1277-1282, 1387-1391 (identity); src/impg.rs:2497-2506 (subset)
+For $m>0$ and $\delta=0$, every reported interval is linked to $I$ by at most $m$ projections.
+% src: src/impg.rs:2444, 2559-2571
+With $\delta>0$, snapping can add bases that no projection covers to the frontier, and their hits have no projection chain to $I$ (Supplementary Note S1).
+% src: src/impg.rs:296-303, 2578-2588; T = tests/test_transitive_integrity.rs:786-830 (gap-5bp case: E present at default delta, absent at delta 0)
+
+\textbf{Guarantees.}
+Supplementary Notes S1 and S2 give worked examples and proofs.
+
+\begin{proposition}[Closedness]\label{prop:closed}
+Assume one combined bidirectional index, breadth-first search, exact projection, $m=0$, $\ell\le 1$, $\delta=0$, no filters and no \texttt{-l}.
+If a visited base shares an aligned column with a base of another sequence, that base is visited too.
+If no alignment joins a sequence to itself, $H_0(I)$ thus contains the $\equiv_A$ class of every base of $I$.
+\end{proposition}
+% src: derived from src/impg.rs:1686-1712, 2379-2628, 2791-2929; proof and assumptions (A1) to (A7) in Supplementary Note S2; src/main.rs:11281-11285 (per-file index chosen automatically at 100 or more alignment files)
+
+\begin{proposition}[Restriction]\label{prop:restrict}
+Let $C$ be a set of bases closed under $R(A)$, and let $A|_C$ keep the aligned columns of $A$ with both bases in $C$.
+Run seqwish with \texttt{-k} at most 1 and with \texttt{-r}, \texttt{-l} and \texttt{-f} at their default 0.
+Then seqwish puts two bases of $C$ in one node class of $G(A|_C)$ exactly when it does so in $G(A)$.
+\end{proposition}
+% src: derived; proof in Supplementary Note S2 (B2); seqwish@0a7e580 src/alignments.rs:141 (-k filter), src/main.rs:81-104 (-r, -l, -k, -f defaults 0); Garrison2024pggb (smoothing follows induction)
+\pending{E6}{bases of the closed set whose node class differs between the restricted and the global seqwish graph, at -k 0, at -k 23, at the CLI closure defaults and for the -o gfa path of impg 0.5.0}
+
+\textbf{Non-guarantees.}
+Homology missing from $A$, because the aligner missed it or a filter removed it, is missing from $H_m$.
+% src: opportunities.md section 4 L1-L2
+The defaults break closedness, because depth and the 101 bp minimum cut the closure and snapping shifts ends by up to 9 bp.
+% src: src/main.rs:4236, 4253-4255; src/impg.rs:2444, 2585, 296-303, 321-335; derived, not run; worked case in Supplementary Note S1
+impg reports homologs and does not separate orthologs from paralogs.
+% src: plan.md section 5.2 (guarantees and non-guarantees row)
+Two semantics remain open.
+Projections onto the frontier's own sequence are written but not expanded, so a copy on the same contig is reported but never enters the frontier.
+% src: src/impg.rs:2574-2589
+Frontier intervals drop their orientation, so the BED strand is that of the last hop, not relative to $I$.
+% src: src/impg.rs:282-286, 374-379 (start<=end); src/main.rs:12074-12078; derived, not run
+\authornote{Decision D3 (code fix C7): compose the strand across hops or document per-hop strand, and expand self-hits or document that they are not expanded. A test with two reverse-strand hops is missing. E3a strand scoring waits for this decision.}
+
+\begin{algorithm}[t]
+\dontprintsemicolon
+\KwIn{interval trees $T_x$ for every sequence $x$, query interval $(j,I)$, depth $m$, minimum hop length $\ell$, snapping distance $\delta$, filters $\phi$, masks $M$ (partition only)}
+\KwOut{list $H$ of projected intervals}
+\tcp{visited sets, empty outside partition}
+$V\leftarrow M$\;
+$N\leftarrow I\setminus V_j$, insert $I$ into $V_j$ without snapping\;
+$H\leftarrow[(j,N_i)]$, $F\leftarrow\{(j,N_i) : |N_i|\ge\ell\}$, $k\leftarrow 0$\;
+\While{$F\neq\emptyset$ \textbf{and} ($m=0$ \textbf{or} $k<m$)}{
+  \tcp{parallel over $F$, results in frontier order}
+  $P\leftarrow[\,]$\;
+  \ForEach{$(x,J)\in F$ \textbf{and} entry $r\in T_x$ that overlaps $J$}{
+    $(y,K)\leftarrow\pi_r(J\cap r)$\;
+    \lIf{$K\neq\emptyset$ \textbf{and} $(y,K)$ passes $\phi$}{append $(x,y,K)$ to $P$}
+  }
+  \tcp{sequential update}
+  $F'\leftarrow[\,]$\;
+  \ForEach{$(x,y,K)\in P$}{
+    append $(y,K)$ to $H$\;
+    \tcp{self-hits are written but not expanded}
+    \If{$y\neq x$}{
+      $N\leftarrow$ parts of $K$ not in $V_y$, with ends snapped onto $V_y$ within $\delta$\;
+      insert $N$ into $V_y$, append every $(y,N_i)$ with $|N_i|\ge\ell$ to $F'$\;
+    }
+  }
+  $F\leftarrow F'$ sorted and merged per sequence, $k\leftarrow k+1$\;
+}
+\Return{$H$}\;
+\caption{Depth-bounded transitive projection (\texttt{query\_transitive\_bfs}, src/impg.rs:2379-2628). The output length filter \texttt{-l} (not shown) removes rows from $H$ only.}
+\label{alg:bfs}
+\end{algorithm}
+% src: src/impg.rs:2399-2403 (V from masks), 2405-2441 (initial range, F0), 2444 (loop bound), 2452-2533 (parallel projection), 2539-2591 (sequential update), 2553-2557 (-l), 2574-2589 (self-hits, snap, frontier filter), 2594-2624 (sort and merge)

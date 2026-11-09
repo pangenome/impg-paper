@@ -1,0 +1,78 @@
+\section{Discussion}
+\label{sec:discussion}
+
+impg replaces whole-genome graph induction with an index and work per query, and it still needs the alignments.
+% src: src/impg.rs:164-211 (records hold coordinates and file offsets, no nodes); src/impg.rs:2379-2628 (closure computed at query time); supporting/plan.md section 11, first item
+For HPRC r2, the consortium paid the alignment cost for PGGB and released the alignments for impg~\citep{HPRC2026resources}.
+% src: scratchpad phase1/web/hpp_readme.md:151, 183
+The release reports no PGGB build cost by stage, so we cannot compare the impg index with induction and smoothing.
+% src: hpp_readme.md:149-191 (no cost reported); supporting/plan.md question Q3
+\authornote{ask the HPRC builders for the r2 PGGB cost split by alignment, induction and smoothing (plan question Q3), or keep this sentence}
+impg also does not save storage, since the 466 TPA files take 25,070,431,026 bytes, 3.918 times the 6,398,170,680-byte GBZ v3 graph.
+% src: sum of 466 .tpa sizes in scratchpad phase2/s3_tpas.xml; GBZ v3 size in scratchpad phase2/s3/pggb_wg.tsv; ratio 3.9184 by division; supporting/plan.md section 11, second item
+The TPA files hold no sequence, and the HPRC r2 AGC archive that impg reads takes another 3,295,070,733 bytes.
+% src: sections/03.implementation.tex:164 (sequence fetched from FASTA or AGC); scratchpad phase1/FACTS_CHECKED_BY_ORCHESTRATOR.md:7 (HPRC_r2_assemblies_0.6.1.agc, 3,295,070,733 bytes); supporting/plan.md E1 and E2 commands (--sequence-files $AGC)
+
+impg reports only the homology that the aligner and its filters found, and a wrong alignment spreads through the closure.
+% src: supporting/opportunities.md section 4, L1; src/impg.rs:2379-2628 (BFS follows every projected record)
+In a star to one reference, sequence absent from the reference cannot link two other genomes.
+% src: derived from the closure definition (supporting/opportunities.md section 4, L2)
+HPRC r2 aligns 23,738 of the 108,345 possible pairs, and every assembly also aligns to GRCh38 and to CHM13.
+% src: drafts/bioinformatics-2026-11/data/pairs_out.txt line 3; data/partner_summary.txt line 1 (both reference files list 465 partners)
+At the pair level, each non-reference haplotype reaches the other 463 within 2 hops without either reference, so reference dependence needs measuring in bases \pending{E3}{bp recall of held-out partners at -m 2 with and without GRCh38 and CHM13}.
+% src: data/pairs_out.txt last line ("2 hops min 463 median 463.0")
+Each hop projects the interval clipped by the previous hop, so boundary error carries over between hops \pending{E4}{bp recall and exact-boundary rate at 0, 10 and 100 bp by pair fraction and depth}.
+% src: src/impg.rs:2791-2929 (projection of the clipped frontier); supporting/opportunities.md section 4, L3
+Self-alignments are reported but not expanded, and impg reports paralogous copies without classifying them.
+% src: src/impg.rs:2574-2589 ("Only consider for next depth if it's a different sequence")
+\authornote{decide whether self-hits expand and whether strand is composed across hops (plan decision D3)}
+Copy numbers also need each copy stored as its own alignment record.
+% src: supporting/plan.md section 11 ("every copy" item)
+At the C4 locus, 401 of the 465 query haplotypes in the GRCh38 file cover each GRCh38 base with at most one record \pending{E7}{records per haplotype at AMY1, SMN1/SMN2, LPA and CYP2D6}.
+% src: scratchpad phase2/judge/c4_depth_out.txt line 3 ("max records over one GRCh38 base [(1, 401), (2, 59), (3, 5)]"); locus GRCh38#0#chr6:31891045-32123783
+The index stores positions and alignments, not nodes, so every local graph numbers its own nodes and lace assigns new identifiers.
+% src: src/impg.rs:164-174 (QueryMetadata, no node field); src/commands/lace.rs:1043-1058 (id_mapping, new ids from 1)
+Partitioned graph building holds every partition graph in memory and laces them there, so its peak memory is not bounded by the window.
+% src: src/lib.rs:1276-1319 (sub_gfas Vec<String>, lace_subgraphs, normalize_and_sort); scratchpad phase1/VERIFY_CORRECTIONS.md:59, 112; supporting/plan.md section 11 (partitioned memory)
+Local graphs re-align the homologous intervals, so they need not be subgraphs of the PGGB graph or agree at shared boundaries.
+% src: src/main.rs:12326-12340 (output_results_gfa keeps merged intervals and calls dispatch_gfa_engine)
+Under the settings of Proposition \ref{prop:restrict}, a graph induced from the clipped alignments equals part of the implied graph \pending{E6}{bases with a differing node class}.
+% src: sections/02.model.tex:64-68 (\label{prop:restrict}, Restriction); supporting/opportunities.md section 1.6 (Proposition 2); experiment E6
+Coordinates are 32-bit signed integers, so impg handles sequences of at most 2,147,483,647 bp.
+% src: src/impg.rs:164-174 (i32 target_start, target_end, query_start, query_end)
+impg also reads only local files, while Shredtools answers queries in a web browser through HTTP Range requests~\citep{Shivakumar2026shredtools}.
+% src: /home/guarracino/git/impg Cargo.toml and src/ (no HTTP client crate, grep reqwest|hyper|ureq gives 0 hits); paper.txt:473-489
+\authornote{add remote access before submission or keep it as a limit (plan decision D12)}
+
+Shredtools and impg answer the same regional question from different homology.
+% src: references/biorxiv-2026-07-03-736354/paper.txt:278-283, 528-532
+On 92 HPRC year-1 chr19 assemblies, its authors built the Shredtools index on one thread 3.8 times faster than all-pairs impg with 48-thread wfmash alignment~\citep{Shivakumar2026shredtools}.
+% src: paper.txt:285-286 ("92 chr19 assemblies from HPRCr1"), 299-301 ("Run serially in a single thread ... 3.8x faster"); Fig. 2 caption, paper.txt:346-348 ("wfmash was run using 48 threads")
+Shredtools needs no alignment, and its single-thread build used 20 times less memory~\citep{Shivakumar2026shredtools}.
+% src: paper.txt:299-301 ("used 20x less memory")
+impg instead gives base-level boundaries and follows homology through intermediate genomes.
+% src: src/impg.rs:2791-2929 (CIGAR projection), src/impg.rs:2379-2628 (BFS)
+The Shredtools authors suggest feeding multi-MUM coordinates into impg~\citep{Shivakumar2026shredtools}.
+% src: paper.txt:530-532 ("integrate the multi-MUM coordinate system into the impg framework")
+impg already queries its alignments and a second homology source through one interface.
+% src: src/impg_index.rs:17-121 (ImpgIndex trait); src/lib.rs:235-249 (Impg, MultiImpg, SyngImpgWrapper)
+That source is syng, a syncmer GBWT that needs no alignment~\citep{Durbin2026syng}, and it is ongoing work.
+% src: Durbin2026syng; supporting/plan.md section 10 (syng backend out of scope, WIP)
+At commit 0987752, impg selects syncmers for syng in a way that is not symmetric under reverse complementation, so syng queries can miss inverted copies.
+% src: impg notes/log.md section 'syng reverse complement (2026-11-08)' (untracked; impg passes w where syng uses w+1, query never reports the reverse-complement copy); fix 9c507c5 is not an ancestor of 0987752 (git merge-base); src/syng.rs:2135-2137 (read matcher tries both orientations); supporting/plan.md section 10
+The syng adapter also ignores the depth, length, identity and subset settings of a query.
+% src: src/lib.rs:515-607 (SyngImpgWrapper query and transitive methods ignore masks, max_depth, min_transitive_len, min_output_length, identity, subset_filter); scratchpad phase1/VERIFY_CORRECTIONS.md:19
+
+COSIGT already uses impg refine to set locus boundaries and impg query to project them onto each haplotype before genotyping~\citep{Bolognini2026cosigt}.
+% src: scratchpad phase1/ft/cosigt.txt:45-49
+Earlier versions of impg also extracted regions in other studies~\citep{Varki2025rindex,Sorin2025cattle,Sorin2026kit}.
+% src: supporting/citation-keys.md rows Varki2025rindex (v0.2.0), Sorin2025cattle and Sorin2026kit (v0.2.1)
+The genotyping and genome inference commands of impg are ongoing work, not evaluated here.
+% src: supporting/plan.md section 10
+Genotyping has no benchmark against COSIGT calls.
+% src: /home/guarracino/git/impg docs/genotype-evidence-audit.md:494-495 (tracked in git)
+The developers stopped a whole-genome inference run on HG002 when 2,187 of 5,844 territories had finished, and two more finished after the stop.
+% src: /home/guarracino/git/impg docs/syng-gmem-bwt/datasheet-runtime.md:7-11 at 0987752 ("STOPPED BY OWNER ... 2,187/5,844 ... final terminal census 2,189/5,844")
+\authornote{decide whether impg infer is labelled experimental in the help text (plan decision D10)}
+For regional analysis, the alignments behind a pangenome graph can be queried directly, with graphs built only where a study needs them.
+% src: thesis, supporting/plan.md section 3; src/main.rs:12326-12340 (local graphs on request)

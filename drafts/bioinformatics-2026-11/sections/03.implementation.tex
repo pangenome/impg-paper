@@ -1,0 +1,223 @@
+% Section 3: Implementation.
+% Source paths in "% src:" comments.
+%   src/..., tests/... and Cargo.toml are relative to /home/guarracino/git/impg at HEAD 0987752 (impg 0.5.0).
+%   "impg <cmd> --help" refers to the saved help texts /tmp/claude-1000/-home-guarracino-git-impg-paper/ed3cfa77-35b3-454f-91de-3d0a63c6ad53/scratchpad/phase2/plan_help_<cmd>.txt.
+%   plan.md is /home/guarracino/git/impg-paper/drafts/bioinformatics-2026-11/supporting/plan.md.
+%   VERIFY_CORRECTIONS.md is /tmp/claude-1000/-home-guarracino-git-impg-paper/ed3cfa77-35b3-454f-91de-3d0a63c6ad53/scratchpad/phase1/VERIFY_CORRECTIONS.md.
+
+\section{Implementation}
+\label{sec:implementation}
+
+\begin{figure*}[t]
+\centering
+\resizebox{\textwidth}{!}{%
+\begin{tikzpicture}[
+  font=\footnotesize,
+  >={Stealth[length=1.8mm]},
+  bar/.style={draw, fill=gray!15},
+  plab/.style={font=\bfseries\normalsize, anchor=north west, inner sep=0pt},
+  ptitle/.style={font=\footnotesize\bfseries, anchor=west},
+  entry/.style={draw, rounded corners=1pt, font=\scriptsize, minimum height=4mm, minimum width=19mm, inner sep=1.5pt, anchor=west},
+  fline/.style={font=\ttfamily\scriptsize, anchor=west, inner sep=1.5pt},
+  blk/.style={draw, fill=gray!10, minimum height=5mm, font=\scriptsize, inner sep=1.5pt},
+  obox/.style={draw, rounded corners=2pt, fill=white, align=left, font=\ttfamily\scriptsize, inner sep=2pt, anchor=north west},
+  hop/.style={->, thick, red!70!black},
+]
+%% panel a: sequences and alignments
+\node[plab] at (0,9.95) {a};
+\node[ptitle] at (0.4,9.8) {Alignments as an implicit graph};
+\fill[blue!20] (1.4,8.8) -- (3.4,8.8) -- (3.4,7.7) -- (1.4,7.7) -- cycle;
+\fill[blue!20] (3.9,8.8) -- (5.9,8.8) -- (5.4,7.7) -- (3.4,7.7) -- cycle;
+\fill[orange!35] (3.0,7.4) -- (7.6,7.4) -- (3.0,6.3) -- (7.6,6.3) -- cycle;
+\draw[bar] (1.0,8.8) rectangle (8.2,9.1);
+\node[anchor=east] at (0.95,8.95) {A};
+\draw[bar] (1.0,7.4) rectangle (8.2,7.7);
+\node[anchor=east] at (0.95,7.55) {B};
+\draw[bar] (1.0,6.0) rectangle (8.2,6.3);
+\node[anchor=east] at (0.95,6.15) {C};
+\draw[decorate, decoration={brace, amplitude=2pt}] (3.4,9.15) -- (3.9,9.15) node[midway, above=1pt, font=\scriptsize] {insertion in A};
+\node[font=\scriptsize] at (2.4,8.25) {$a_1$, strand $+$};
+\node[font=\scriptsize, anchor=west] at (7.7,6.85) {$a_2$, strand $-$};
+\node[font=\scriptsize] at (4.6,5.55) {$G(A)$ is implied by $A$ and never built};
+%% panel b: index
+\node[plab] at (9.4,9.95) {b};
+\node[ptitle] at (9.8,9.8) {Index: one interval tree per target};
+\node[anchor=east] at (10.9,9.05) {$T_A$};
+\node[entry, fill=blue!20] (eA) at (11.0,9.05) {$a_1^{R}\to$ B};
+\node[anchor=east] at (10.9,8.5) {$T_B$};
+\node[entry, fill=blue!20] (eB1) at (11.0,8.5) {$a_1\to$ A};
+\node[entry, fill=orange!35] (eB2) at (11.0,8.0) {$a_2^{R}\to$ C};
+\node[anchor=east] at (10.9,7.45) {$T_C$};
+\node[entry, fill=orange!35] (eC) at (11.0,7.45) {$a_2\to$ B};
+\draw[fill=gray!5] (13.3,7.2) rectangle (18.3,9.4);
+\node[font=\scriptsize, anchor=north west] at (13.35,9.38) {alignment file (PAF, TPA or 1ALN)};
+\node[fline, fill=blue!20] (r1) at (13.45,8.65) {A 0 110 + B 0 100 50=10I50=};
+\node[fline, fill=orange!35] (r2) at (13.45,7.75) {B 0 100 - C 0 100 100=};
+\draw[->, gray!60!black] (eA.east) to[out=0, in=180] (r1.west);
+\draw[->, gray!60!black] (eB1.east) to[out=0, in=180] (r1.west);
+\draw[->, gray!60!black] (eB2.east) to[out=0, in=180] (r2.west);
+\draw[->, gray!60!black] (eC.east) to[out=0, in=180] (r2.west);
+\node[font=\scriptsize, anchor=west] at (9.8,6.95) {entry: other sequence, coordinates, strand, flag $R$, offset or record number (no CIGAR)};
+\node[font=\scriptsize, anchor=west] at (9.8,6.55) {IMPGIDX2 file};
+\node[blk, minimum width=9mm, anchor=west] (m1) at (9.8,6.1) {magic};
+\node[blk, minimum width=13mm, right=0pt of m1] (m2) {map offset};
+\node[blk, minimum width=10mm, right=0pt of m2] (m3) {names};
+\node[blk, minimum width=9mm, fill=white, right=0pt of m3] (m4) {$T_A$};
+\node[blk, minimum width=9mm, fill=white, right=0pt of m4] (m5) {$T_B$};
+\node[blk, minimum width=9mm, fill=white, right=0pt of m5] (m6) {$T_C$};
+\node[blk, minimum width=13mm, right=0pt of m6] (m7) {tree map};
+\draw[->, red!70!black] (m7.south) to[out=-150, in=-30] node[below, font=\scriptsize] {decoded on first use} (m5.south);
+%% panel c: two-hop closure
+\node[plab] at (0,4.75) {c};
+\node[ptitle] at (0.4,4.6) {Two-hop projection of $I$ ($m=2$)};
+\draw[bar] (1.0,3.6) rectangle (8.2,3.9);
+\node[anchor=east] at (0.95,3.75) {A};
+\draw[bar] (1.0,2.2) rectangle (8.2,2.5);
+\node[anchor=east] at (0.95,2.35) {B};
+\draw[bar] (1.0,0.8) rectangle (8.2,1.1);
+\node[anchor=east] at (0.95,0.95) {C};
+\fill[red!60] (2.6,3.6) rectangle (4.4,3.9);
+\fill[red!20] (3.2,3.6) rectangle (3.8,3.9);
+\node[font=\scriptsize, anchor=south] at (3.5,3.92) {$I=$ A:40-70, depth 0};
+\fill[red!60] (2.6,2.2) rectangle (3.8,2.5);
+\draw[->, white, thick] (2.75,2.35) -- (3.65,2.35);
+\node[font=\scriptsize, anchor=south west] at (4.2,2.52) {B:40-60, strand $+$, depth 1};
+\fill[red!60] (2.6,0.8) rectangle (3.8,1.1);
+\draw[->, white, thick] (3.65,0.95) -- (2.75,0.95);
+\node[font=\scriptsize, anchor=south west] at (4.2,1.12) {C:40-60, strand $-$, depth 2};
+\draw[hop] (3.2,3.55) -- node[right, font=\scriptsize] {through $a_1^{R}$} (3.2,2.55);
+\draw[hop] (3.2,2.15) -- node[right, font=\scriptsize] {through $a_2^{R}$} (3.2,1.15);
+\node[font=\scriptsize] at (4.6,0.3) {visited sets $V_A$, $V_B$, $V_C$ keep only new parts};
+%% panel d: outputs
+\node[plab] at (9.4,4.75) {d};
+\node[ptitle] at (9.8,4.6) {Outputs};
+\node[obox] at (9.8,4.25) {BED (merged)\\A 40 70 A:40-70 . +\\B 40 60 A:40-70 . +\\C 40 60 A:40-70 . -};
+\node[obox] at (14.6,4.25) {FASTA\\>A:40-70\\ACGT...\\>B:40-60\\ACGT...\\>C:40-60\\ACGT...};
+\node[obox] at (9.8,2.0) {PAF, one row per hop\\C 1000 40 60 - B 1000 40 60\\20 20 255 gi:f:1 bi:f:1 cg:Z:20= ...};
+\node[font=\scriptsize, anchor=west] at (15.0,1.75) {local GFA (re-aligned)};
+\node[draw, circle, inner sep=1.6pt, fill=white] (g1) at (15.3,1.1) {};
+\node[draw, circle, inner sep=1.6pt, fill=white] (g2) at (16.0,1.1) {};
+\node[draw, circle, inner sep=1.6pt, fill=white] (g3) at (16.7,1.1) {};
+\node[draw, circle, inner sep=1.6pt, fill=white] (g4) at (17.4,1.1) {};
+\node[draw, circle, inner sep=1.6pt, fill=white] (g5) at (16.35,0.5) {};
+\draw (g1) -- (g2) -- (g3) -- (g4);
+\draw (g2) -- (g5) -- (g3);
+\end{tikzpicture}%
+}
+\caption{The implicit pangenome graph in impg.
+(a) Three sequences A, B and C, which stand for PanSN names such as \texttt{HG1\#1\#chr1}, and two pairwise alignments.
+Alignment $a_1$ lies on the plus strand and has a 10 bp insertion in A, and $a_2$ lies on the minus strand (crossed band).
+The alignments imply the variation graph $G(A)$ that seqwish would induce, and impg never builds it.
+(b) The index keeps one interval tree per sequence.
+Each alignment enters the tree of its target and, with the REVERSED flag $R$, the tree of its query.
+An entry stores coordinates, strand, the flag and an offset or record number in the alignment file, and never a CIGAR.
+The IMPGIDX2 file stores the names, one block per tree and a trailing tree map, and a query decodes only the trees it touches.
+(c) A query at depth $m=2$.
+The interval A:40-70 projects through $a_1$ to B:40-60, because the 10 inserted bases of A (light red) have no partner in B.
+B:40-60 projects through $a_2$ to C:40-60 on the minus strand, and back to A:40-70, which is already visited.
+White arrows show the strand.
+(d) Outputs of \texttt{query} for this example.
+BED rows are merged, and FASTA holds the input interval and the projected intervals.
+PAF has one row per hop with its CIGAR slice, after touching or overlapping rows of one sequence pair merge.
+The local GFA comes from aligning the intervals again.
+File rows in b show query, start, end, strand, target, start, end and CIGAR.
+Record $a_1$ is the fixture at tests/test\_transitive\_integrity.rs:462, and $a_2$ is not a fixture.
+Coordinates in c and d follow the code with \texttt{-x -m 2 -d 0} and \texttt{-{}-min-transitive-len 0} (derived, not run).}
+\label{fig:overview}
+\end{figure*}
+% src (legend): tests/test_transitive_integrity.rs:462 (a1 fixture); src/impg.rs:142-162 (inverted CIGAR), 164-211 (entry fields), 1686-1712 (two entries), 1758-1954 (IMPGIDX2 and lazy load), 2379-2628 (BFS), 2791-2929 (projection); src/paf.rs:171 (PAF CIGAR offset), src/tpa_parser.rs:116 (TPA record number), src/onealn.rs:697 (1ALN alignment index); src/main.rs:12055-12098 (BED), 12204 and 12648-12760 (PAF merge of contiguous or overlapping rows), 12236-12295 (PAF fields, gi:f and bi:f before cg:Z), 7629 and 7641-7643 (input interval removed for BEDPE and PAF only), 7749-7760 and 12487-12500 (FASTA keeps the input interval), 12324-12340 (GFA by re-alignment); impg query --help (-x, -d required, -m default 2); src/main.rs:4259; hop coordinates derived by hand from src/impg.rs:2791-2929
+
+\textbf{Index.}
+impg keeps one interval tree from the coitrees library \citep{Jones2024coitrees} per target sequence (Fig. \ref{fig:overview}b).
+% src: src/impg.rs:226, 498-508, 1729-1737; Cargo.lock (coitrees 0.4.0)
+An entry holds the other sequence, both coordinate pairs as 32-bit integers, a file number, a data length and one 64-bit word.
+% src: src/impg.rs:164-174
+Bit 63 of the word is the strand, bit 62 a REVERSED flag, and the rest the CIGAR byte offset or the tracepoint record number.
+% src: src/impg.rs:178-207; src/alignment_record.rs:3-10
+For bgzipped PAF the offset is a BGZF virtual offset.
+% src: src/paf.rs:235-253, 286-298
+The index stores no CIGAR and no sequence.
+% src: src/impg.rs:164-174
+A record with different query and target enters the tree of its target and, flagged REVERSED with swapped coordinates, the tree of its query.
+% src: src/impg.rs:1686-1712
+Self-alignments enter once, and \texttt{-{}-unidirectional} turns the second insertion off.
+% src: src/impg.rs:1688; impg index --help (--unidirectional)
+A query on any sequence therefore reaches every alignment that touches it.
+% src: src/impg.rs:1686-1712; tests/test_transitive_integrity.rs:226-290
+The index refers to alignment files by number, so a query must list them in the order used to build it.
+% src: src/impg.rs:1657-1675 (file_index from enumerate); plan.md section 9 (code fix C4)
+This paper uses one combined index (\texttt{-i}), not the per-file mode that 100 or more files select by default.
+% src: src/main.rs:11277-11291; plan.md section 10
+
+\textbf{On-disk format.}
+An IMPGIDX2 file holds an 8-byte magic, the offset of a trailing tree map, the sequence names and lengths, and one block per tree.
+% src: src/impg.rs:1758-1825
+Loading reads the names and the tree map, and a query decodes a tree when it first touches its sequence.
+% src: src/impg.rs:1827-1888, 1891-1954
+Decoded trees stay in memory until the process ends, except in \texttt{stats}.
+% src: src/impg.rs:1861-1865; eviction only at src/main.rs:13302, 13374
+
+\textbf{Projection.}
+For PAF input, impg reads the CIGAR at the stored offset and walks it once, up to the end of the requested range.
+% src: src/impg.rs:599-656, 2829-2835
+A REVERSED entry walks the inverted CIGAR, with \texttt{I} and \texttt{D} swapped and the order reversed on the minus strand.
+% src: src/impg.rs:142-162, 651-654
+TPA \citep{Guarracino2026tpa} and 1ALN \citep{Myers2025fastga,Durbin2024onecode} files store tracepoints \citep{Kaushan2026tracepoints}.
+% src: citation-keys.md (Guarracino2026tpa, Myers2025fastga, Durbin2024onecode, Kaushan2026tracepoints); src/tpa_parser.rs; src/onealn.rs
+For them impg finds the overlapping tracepoint segments, fetches their sequence from FASTA or AGC \citep{Deorowicz2023agc} and rebuilds their CIGAR with WFA2 \citep{MarcoSola2021wfa}.
+% src: src/impg.rs:43-71 (thread-local WFA2), 750-927 (segment scan), 1031-1204 (subset rebuild), 1206-1362; src/sequence_index.rs:15-17, 78-90
+A hit whose tracepoints cannot be fetched or projected is dropped with a debug message only.
+% src: src/impg.rs:1230-1236, 1247-1254, 1330-1338
+\pending{E1}{percentage of identical sorted rows between TPA exact and PAF projection of the same records at -m 0, 1 and 2, and the number of dropped tracepoint hits}
+\texttt{-{}-approximate} interpolates the boundary inside the first and last overlapping segment, without sequences or WFA2, for BED and BEDPE output.
+% src: src/impg.rs:1421-1637; src/main.rs:7393-7408; impg query --help (--approximate)
+\pending{E1}{boundary difference in bp between approximate and exact mode, and the wall time of both}
+Algorithm \ref{alg:bfs} projects each depth in parallel threads and applies the results one by one in frontier order.
+% src: src/impg.rs:2452-2533 (rayon par_iter with ordered collect), 2539-2591 (sequential loop)
+\pending{E2}{whether query output is identical at -t 1, 4, 16 and 48}
+
+\textbf{Outputs.}
+\texttt{query} writes BED, BEDPE, PAF, FASTA, GFA, VCF and MAF, and PAF rows keep the CIGAR slice of each hop (Fig. \ref{fig:overview}d).
+% src: impg query --help (Output formats); src/main.rs:7614-7760, 12276-12295 (PAF fields cg:Z, gi:f, bi:f, an:Z)
+Only BED output and one POA-engine GFA case have tests on the alignment backend.
+% src: VERIFY_CORRECTIONS.md (core-index-projection, query output formats); tests/test_transitive_integrity.rs; tests/test_graph_output_crush.rs:37-124 (only alignment-backend GFA output test, POA engine); tests/test_aligner_validation.rs:3-31 (-o gfa only for option rejection)
+With \texttt{-o gfa}, impg merges the projected intervals, drops their CIGARs and builds a graph of their sequences from scratch.
+% src: src/main.rs:12324-12340; src/lib.rs:926-951
+The default engine aligns the intervals with each other, induces a graph with an embedded seqwish \citep{Garrison2023seqwish}, smooths it \citep{Garrison2025smoothxg}, normalizes it with GFAffix \citep{Doerr2026gfaffix} and sorts it \citep{Garrison2026gfasort}.
+% src: src/lib.rs:44-45, 1112-1131; src/smooth.rs:1-5 (smoothxg-style smoothing); impg query --help (--gfa-engine default pggb); citation-keys.md:17, 19
+These graphs come from new alignments, so they need not match any part of $G(A)$.
+% src: src/main.rs:12324-12340; plan.md section 11
+The embedded seqwish also drops matches shorter than 23 bp by default, which violates the condition of Proposition \ref{prop:restrict}.
+% src: impg query --help (--min-match-len default 23)
+\authornote{Decision D4 (code fix C15): build -o gfa graphs from the projected PAF records, so that Proposition 2 can apply to them, or keep re-alignment and say so.}
+
+\textbf{Partition and refine.}
+\texttt{partition} picks unassigned bases, by default the longest unassigned region, and cuts them into windows of \texttt{-w} bp.
+% src: src/commands/partition.rs:754-797 (longest mode), 948-972 (windows); impg partition --help (--selection-mode default longest)
+A tail shorter than \texttt{-w} joins the previous window.
+% src: src/commands/partition.rs:957-966
+It computes the closure of each window with assigned bases masked.
+% src: src/commands/partition.rs:369-397 (masked BFS)
+Each closure is merged at \texttt{-d} and extended to sequence ends closer than 3,000 bp, and its unmasked part becomes one partition.
+% src: src/commands/partition.rs:421-444 (merge_overlaps, extend_to_close_boundaries), 446-451 (mask), 1428-1466; impg partition --help (-d required, --min-boundary-distance default 3000)
+By default, singleton partitions are then moved into a flanking partition.
+% src: src/commands/partition.rs:31-46, 673-678; impg partition --help (--no-rehome-singletons)
+The loop ends for any window of at least 1 bp (Supplementary Note S4).
+% src: src/commands/partition.rs:1037-1380; Supplementary Note S4
+\pending{E9}{partitions, uncovered bp and bp assigned to more than one partition on ScRAP 142}
+\texttt{refine} widens a locus in steps of 1,000 bp, by default up to half its length per side.
+% src: impg refine --help (--extension-step 1000, --max-extension 0.5)
+It keeps the extension that maximizes the sequences, haplotypes or samples (\texttt{-{}-pansn-mode}) that span both ends by at least 1,000 bp.
+% src: impg refine --help (--span-bp 1000, --pansn-mode); src/main.rs:7933-7935 (default Sequence); src/commands/refine.rs:188-273
+\pending{E10}{haplotypes spanning both ends before and after refine at TERT and IGKV6-21, and the bp added per side}
+
+\textbf{Memory.}
+A build holds every alignment record (56 bytes of fields) and every tree entry (48 bytes) at once.
+% src: src/alignment_record.rs:12-21 (2 x u32 + 6 x 8-byte fields = 56 bytes); src/impg.rs:164-174 (40 bytes) plus coitrees Interval first and last (8 bytes); src/impg.rs:1657-1737
+For the 389,234,668 HPRC release 2 records, if none is a self-alignment, that is at least 59,163,669,536 bytes by field sizes, not by measurement.
+% src: plan.md section 4 (records summed from the 466 TPA headers); 389,234,668 x 56 + 778,469,336 x 48 = 59,163,669,536, recomputed with python3 in this step
+\pending{E2}{index build wall time, CPU time, peak RSS and index bytes for the 466 TPA files on the named node}
+A code comment puts one AGC decompressor slot at 3.70 GB for the 3.30 GB HPRC archive, with up to 8 slots by default.
+% src: src/agc_index.rs:58-83 (default 8, capped by the thread count), 87-100 (comment, 3.70 GB per slot)
+Coordinates are 32-bit and operation lengths 29-bit, so impg does not support sequences above 2,147,483,647 bp or operations above 536,870,911 bp.
+% src: src/impg.rs:81-109 (29-bit op length), 164-174 (i32); plan.md section 9 (code fix C13, no check today)
